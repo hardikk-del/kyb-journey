@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meridian Bank — Assisted Current Account Onboarding</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            50:'#eef4ff',100:'#dbe6ff',200:'#bccfff',300:'#8eabff',
+            400:'#597dff',500:'#3354f5',600:'#1f37db',700:'#1a2bb0',
+            800:'#1b298c',900:'#1c2870',950:'#141a47'
+          },
+          ink: '#0f172a'
+        },
+        fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+      }
+    }
+  }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body{font-family:'Inter',system-ui,sans-serif;}
+  .fade{animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .spin{animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .pulse{animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
+  .sigpad{touch-action:none}
+</style>
+</head>
+<body class="bg-slate-100 text-ink">
+
+<div id="app" class="min-h-screen flex flex-col"></div>
+
+<script>
+/* ============================================================
+   Meridian Bank — Assisted onboarding + KYB + CA opening
+   Front-end-only clickable prototype. Structure inspired by a
+   generic assisted-onboarding flow; all visuals are original.
+   ============================================================ */
+
+const PHASES = [
+  { id:'customer',  label:'Customer Details',   icon:'user' },
+  { id:'docs',      label:'Document Collection',icon:'folder' },
+  { id:'discipline',label:'Need of Discipline', icon:'shield' },
+  { id:'kyc',       label:'KYC Details',        icon:'id' },
+  { id:'business',  label:'Business Details',   icon:'building' },
+  { id:'fatca',     label:'FATCA & Site Check', icon:'globe' },
+  { id:'account',   label:'Account Setup',      icon:'card' },
+  { id:'rm',        label:'RM Declaration',     icon:'badge' },
+  { id:'post',      label:'Post Onboarding',    icon:'flag' },
+];
+
+// Each screen maps to a phase for the sidebar highlight
+const SCREENS = [
+  {key:'overview',   phase:'customer'},   // 1
+  {key:'custForm',   phase:'customer'},   // 2
+  {key:'camPerm',    phase:'customer'},   // 3
+  {key:'locPerm',    phase:'customer'},   // 4
+  {key:'sendLink',   phase:'docs'},       // 5
+  {key:'sending',    phase:'docs'},       // 6
+  {key:'linkSent',   phase:'docs'},       // 7
+  {key:'uploading',  phase:'docs'},       // 8
+  {key:'waiting',    phase:'docs'},       // 9
+  {key:'docPan',     phase:'docs'},       // 10
+  {key:'docList',    phase:'docs'},       // 11
+  {key:'docBureau',  phase:'docs'},       // 12
+  {key:'discipline', phase:'discipline'}, // 13
+  {key:'kycPan',     phase:'kyc'},        // 15
+  {key:'kycDigi',    phase:'kyc'},        // 16
+  {key:'kycFace',    phase:'kyc'},        // 17
+  {key:'kycAddr',    phase:'kyc'},        // 18
+  {key:'kycSign',    phase:'kyc'},        // 19
+  {key:'selfie',     phase:'kyc'},        // 20
+  {key:'bizGst',     phase:'business'},   // 21
+  {key:'bizAddr',    phase:'business'},   // 22
+  {key:'bizProof',   phase:'business'},   // 23
+  {key:'bizMore',    phase:'business'},   // 24
+  {key:'fatca',      phase:'fatca'},      // 25
+  {key:'sitePhoto',  phase:'fatca'},      // 26
+  {key:'siteNamep',  phase:'fatca'},      // 27
+  {key:'siteResult', phase:'fatca'},      // 28
+  {key:'product',    phase:'account'},    // 29
+  {key:'bankStmt',   phase:'account'},    // 30
+  {key:'bankDetails',phase:'account'},    // 31
+  {key:'rmBasic',    phase:'rm'},         // 32
+  {key:'rmSelfie',   phase:'rm'},         // 33
+  {key:'postOnb',    phase:'post'},       // 34
+  {key:'previewA',   phase:'post'},       // 35
+  {key:'previewB',   phase:'post'},       // 36
+  {key:'submitted',  phase:'post'},       // 37
+];
+
+const state = {
+  idx: 0,
+  data: {
+    customerId:'CA-2000185222',
+    name:'Ramesh Raj',
+    phone:'+91 76065 12345',
+    email:'ramesh@example.com',
+    entity:'Sole Proprietorship',
+    highExposure:'no',
+    channel:'WhatsApp',
+    docPhone:'+91 76065 12345',
+    pan:'CHTPR0429G',
+    panName:'Mukesh Prabhu',
+    dob:'20 Oct 1993',
+    idMethod:'digilocker',
+    address:'709-A, Ellora Cooperative Housing Society, Pune 411001',
+    addrProof:'Utility Bill',
+    gst:'27ABCDE1234F1Z5',
+    gstLegal:'Mukesh Prabhu',
+    gstCompany:'Prabhu Enterprises',
+    gstAddr:'Shop 14, Market Road, Pune 411002',
+    industry:'Retail Trade',
+    bizNature:'Trading',
+    activity:'B2C Sales',
+    turnover:'2 Cr – 5 Cr',
+    incorp:'12/06/2018',
+    importExport:'no',
+    product:'Smart E-Commerce Account',
+    rmName:'Rajesh Verma',
+    rmId:'RM78923',
+    rmChannel:'Field Sales',
+    rmDate:'18/06/2026',
+    branch:'BR1167',
+    ref:'CA-260618-XYZ12345'
+  }
+};
+
+/* ---------- tiny helpers ---------- */
+const $ = (s,el=document)=>el.querySelector(s);
+const go  = i => { state.idx = Math.max(0, Math.min(SCREENS.length-1, i)); render(); };
+const next= () => go(state.idx+1);
+const back= () => go(state.idx-1);
+const gotoKey = k => { const i = SCREENS.findIndex(s=>s.key===k); if(i>=0) go(i); };
+const gotoPhase = pid => { const i = SCREENS.findIndex(s=>s.phase===pid); if(i>=0) go(i); };
+const set = (k,v)=>{ state.data[k]=v; };
+
+const icons = {
+  user:'<path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5 0-9 2.5-9 6v1h18v-1c0-3.5-4-6-9-6z"/>',
+  folder:'<path d="M3 6a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V6z"/>',
+  shield:'<path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"/>',
+  id:'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2" fill="#fff"/><path d="M14 9h4M14 12h4M6 16h8" stroke="#fff" stroke-width="1.5"/>',
+  building:'<path d="M4 21V5a2 2 0 012-2h6a2 2 0 012 2v16M14 9h4a2 2 0 012 2v10M8 7h2M8 11h2M8 15h2"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" stroke="#fff" stroke-width="1.2" fill="none"/>',
+  card:'<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18" stroke="#fff" stroke-width="1.5"/>',
+  badge:'<circle cx="12" cy="8" r="4"/><path d="M8 13l-1 8 5-3 5 3-1-8"/>',
+  flag:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  check:'<path d="M20 6L9 17l-5-5" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+};
+const phIcon = (name,cls='w-4 h-4') =>
+  `<svg viewBox="0 0 24 24" class="${cls}" fill="currentColor">${icons[name]||icons.check}</svg>`;
+
+/* ---------- chrome: header + sidebar + footer ---------- */
+function chrome(inner){
+  const cur = SCREENS[state.idx];
+  const curPhaseIdx = PHASES.findIndex(p=>p.id===cur.phase);
+  const sidebar = PHASES.map((p,i)=>{
+    const done = i < curPhaseIdx;
+    const active = i === curPhaseIdx;
+    const circle = active
+      ? `<span class="w-7 h-7 rounded-full bg-brand-600 text-white flex items-center justify-center text-xs font-semibold">${i+1}</span>`
+      : done
+      ? `<span class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center">${phIcon('check','w-3.5 h-3.5')}</span>`
+      : `<span class="w-7 h-7 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-xs font-semibold">${i+1}</span>`;
+    return `<button onclick="gotoPhase('${p.id}')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition ${active?'bg-brand-50':'hover:bg-slate-50'}">
+        ${circle}
+        <span class="text-sm ${active?'font-semibold text-brand-800':done?'text-slate-600':'text-slate-400'}">${p.label}</span>
+      </button>`;
+  }).join('');
+
+  return `
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white font-extrabold">M</div>
+        <div>
+          <div class="font-bold text-[15px] leading-tight">Meridian Bank</div>
+          <div class="text-[11px] text-slate-500 leading-tight">Assisted Current Account Onboarding</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="hidden sm:block text-right">
+          <div class="text-[11px] text-slate-400">Customer ID</div>
+          <div class="text-sm font-semibold">${state.data.customerId}</div>
+        </div>
+        <div class="text-[11px] text-slate-400">Step ${state.idx+1} / ${SCREENS.length}</div>
+      </div>
+    </div>
+    <div class="h-1 bg-slate-100">
+      <div class="h-1 bg-brand-600 transition-all" style="width:${((state.idx+1)/SCREENS.length*100).toFixed(1)}%"></div>
+    </div>
+  </header>
+
+  <div class="flex-1 max-w-6xl w-full mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
+    <aside class="hidden lg:block">
+      <div class="bg-white rounded-2xl border border-slate-200 p-3 sticky top-24">
+        <div class="px-3 pt-1 pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Journey</div>
+        ${sidebar}
+      </div>
+    </aside>
+    <main class="min-w-0">
+      <div class="fade">${inner}</div>
+    </main>
+  </div>
+
+  <footer class="border-t border-slate-200 bg-white">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between text-[11px] text-slate-400">
+      <span>Verified by <span class="font-semibold text-slate-500">TrustLayer</span></span>
+      <span>Prototype · Front-end only · No real data is stored</span>
+    </div>
+  </footer>`;
+}
+
+/* ---------- reusable UI bits ---------- */
+const card = (inner,cls='') => `<div class="bg-white rounded-2xl border border-slate-200 p-6 ${cls}">${inner}</div>`;
+const h1 = (t,sub='') => `<div class="mb-5"><h1 class="text-xl font-bold">${t}</h1>${sub?`<p class="text-sm text-slate-500 mt-1">${sub}</p>`:''}</div>`;
+const btn = (label,onclick,cls='') => `<button onclick="${onclick}" class="px-5 py-2.5 rounded-xl font-semibold text-sm transition ${cls}">${label}</button>`;
+const primary = (label='Continue',onclick='next()') => btn(label,onclick,'bg-brand-600 text-white hover:bg-brand-700');
+const ghost = (label='Back',onclick='back()') => btn(label,onclick,'bg-white border border-slate-300 text-slate-600 hover:bg-slate-50');
+const navRow = (primaryLabel='Continue',primaryFn='next()') =>
+  `<div class="flex items-center justify-between mt-6">${ghost()}${primary(primaryLabel,primaryFn)}</div>`;
+
+const field = (label,key,opts={}) => {
+  const v = state.data[key]??'';
+  return `<label class="block">
+    <span class="text-[13px] font-medium text-slate-600">${label}</span>
+    <input value="${v}" ${opts.type?`type="${opts.type}"`:''} placeholder="${opts.ph||''}"
+      oninput="set('${key}',this.value)"
+      class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-200 focus:border-brand-500 outline-none"/>
+  </label>`;
+};
+const selectField = (label,key,options) => {
+  const v = state.data[key];
+  return `<label class="block">
+    <span class="text-[13px] font-medium text-slate-600">${label}</span>
+    <select onchange="set('${key}',this.value)" class="mt-1 w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:ring-2 focus:ring-brand-200 focus:border-brand-500 outline-none">
+      ${options.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}
+    </select>
+  </label>`;
+};
+const radioRow = (key,options) => {
+  const v = state.data[key];
+  return `<div class="flex gap-2 flex-wrap">${options.map(o=>{
+    const sel = (v===o.val);
+    return `<button onclick="set('${key}','${o.val}');render()" class="px-4 py-2 rounded-xl border text-sm font-medium transition ${sel?'border-brand-500 bg-brand-50 text-brand-700':'border-slate-300 text-slate-600 hover:bg-slate-50'}">${o.label}</button>`;
+  }).join('')}</div>`;
+};
+const verifiedBadge = (txt='Verification Completed') =>
+  `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">${phIcon('check','w-3 h-3 text-emerald-600')}${txt}</span>`;
+const pill = (txt,tone='slate') => {
+  const tones={slate:'bg-slate-100 text-slate-600',amber:'bg-amber-100 text-amber-700',emerald:'bg-emerald-100 text-emerald-700',blue:'bg-blue-100 text-blue-700'};
+  return `<span class="px-2 py-0.5 rounded-md text-[11px] font-semibold ${tones[tone]}">${txt}</span>`;
+};
+const docPreview = (label,extra='') =>
+  `<div class="aspect-[1.6] rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center text-slate-400 ${extra}">
+      ${phIcon('id','w-10 h-10 text-slate-300')}
+      <span class="text-xs mt-1">${label}</span>
+   </div>`;
+const infoBanner = (txt,tone='amber') => {
+  const t = tone==='amber'?'bg-amber-50 border-amber-200 text-amber-800':'bg-blue-50 border-blue-200 text-blue-800';
+  return `<div class="rounded-xl border ${t} px-4 py-3 text-sm flex gap-2"><span>ℹ️</span><span>${txt}</span></div>`;
+};
+
+/* ============================================================
+   SCREENS
+   ============================================================ */
+const VIEWS = {
+
+/* 1 — Journey overview */
+overview(){
+  const steps = ['Customer Details','Document Collection','Need of Discipline','KYC Details','Business Details','FATCA & Site Verification','Account Setup','RM Declaration','Post Onboarding'];
+  return card(`
+    ${h1('Let’s get the current account journey started','A guided, assisted onboarding for your customer — done together, step by step.')}
+    <div class="grid sm:grid-cols-2 gap-3">
+      ${steps.map((s,i)=>`<div class="flex items-center gap-3 p-3 rounded-xl border border-slate-200">
+        <span class="w-8 h-8 rounded-lg bg-brand-50 text-brand-700 font-bold text-sm flex items-center justify-center">${i+1}</span>
+        <span class="text-sm font-medium text-slate-700">${s}</span>
+      </div>`).join('')}
+    </div>
+    <div class="flex justify-end mt-6">${primary('Start journey','next()')}</div>
+  `);
+},
+
+/* 2 — Customer details form */
+custForm(){
+  return card(`
+    ${h1('1 · Customer details','Capture the customer’s basic profile to begin.')}
+    <div class="grid sm:grid-cols-2 gap-4">
+      ${field('Full name','name')}
+      ${field('Phone number','phone')}
+      ${field('Email ID','email')}
+      ${selectField('Type of entity','entity',['Sole Proprietorship','Partnership','Private Limited','LLP','Public Limited','HUF','Trust'])}
+    </div>
+    <div class="mt-4">
+      <span class="text-[13px] font-medium text-slate-600">Is the entity’s credit exposure greater than ₹5 Cr?</span>
+      <div class="mt-2">${radioRow('highExposure',[{val:'no',label:'No'},{val:'yes',label:'Yes'}])}</div>
+    </div>
+    ${navRow()}
+  `);
+},
+
+/* 3 — Camera permission */
+camPerm(){
+  setTimeout(()=>{ if(SCREENS[state.idx].key==='camPerm') next(); }, 2200);
+  return card(`
+    ${h1('Setup in progress','We’re preparing your device for assisted verification.')}
+    <div class="flex items-center gap-3 mb-6">
+      <span class="px-3 py-1 rounded-full bg-brand-600 text-white text-xs font-semibold">1 · Camera</span>
+      <span class="flex-1 h-0.5 bg-slate-200"></span>
+      <span class="px-3 py-1 rounded-full bg-slate-200 text-slate-500 text-xs font-semibold">2 · Location</span>
+    </div>
+    <div class="flex flex-col items-center justify-center py-10">
+      <div class="w-20 h-20 rounded-full border-4 border-brand-100 border-t-brand-600 spin"></div>
+      <div class="mt-6 text-lg font-semibold">Checking camera permission…</div>
+      <p class="text-sm text-slate-500 mt-1">Allow camera access when prompted to capture documents & selfies.</p>
+    </div>
+    ${infoBanner('If the browser blocks access, enable the camera from your site settings and retry.')}
+    <div class="flex justify-end mt-6">${ghost('Skip','next()')}</div>
+  `);
+},
+
+/* 4 — Location permission */
+locPerm(){
+  setTimeout(()=>{ if(SCREENS[state.idx].key==='locPerm') next(); }, 2200);
+  return card(`
+    ${h1('Setup in progress','Almost there — one more permission.')}
+    <div class="flex items-center gap-3 mb-6">
+      <span class="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-semibold inline-flex items-center gap-1">${phIcon('check','w-3 h-3')} Camera</span>
+      <span class="flex-1 h-0.5 bg-emerald-300"></span>
+      <span class="px-3 py-1 rounded-full bg-brand-600 text-white text-xs font-semibold">2 · Location</span>
+    </div>
+    <div class="flex flex-col items-center justify-center py-10">
+      <div class="w-20 h-20 rounded-full border-4 border-brand-100 border-t-brand-600 spin"></div>
+      <div class="mt-6 text-lg font-semibold">Checking location permission…</div>
+      <p class="text-sm text-slate-500 mt-1">Location is used to geo-tag site verification.</p>
+    </div>
+    ${infoBanner('Location helps confirm the business address during site verification.')}
+    <div class="flex justify-end mt-6">${ghost('Skip','next()')}</div>
+  `);
+},
+
+/* 5 — Send link for document collection */
+sendLink(){
+  const docs = ['PAN Card','Identity Proof','Business Proof I','Business Proof II','Bureau Check Consent'];
+  return card(`
+    ${h1('2 · Document collection','Send a secure link so the customer can upload documents from their phone.')}
+    <div class="rounded-xl border border-slate-200 divide-y divide-slate-100 mb-5">
+      ${docs.map(d=>`<div class="flex items-center justify-between px-4 py-3"><span class="text-sm font-medium text-slate-700">${d}</span>${pill('Required')}</div>`).join('')}
+    </div>
+    <span class="text-[13px] font-medium text-slate-600">Send link via</span>
+    <div class="mt-2 mb-4">${radioRow('channel',[{val:'SMS',label:'SMS'},{val:'WhatsApp',label:'WhatsApp'}])}</div>
+    ${field('Customer mobile number','docPhone')}
+    <div class="flex items-center justify-between mt-6">
+      <button onclick="gotoKey('docPan')" class="text-sm font-semibold text-brand-600 hover:underline">Upload on customer’s behalf instead →</button>
+      <div class="flex gap-2">${ghost()}${primary('Send link',"gotoKey('sending')")}</div>
+    </div>
+  `);
+},
+
+/* 6 — Sending */
+sending(){
+  setTimeout(()=>{ if(SCREENS[state.idx].key==='sending') gotoKey('linkSent'); }, 1600);
+  return card(`
+    ${h1('2 · Document collection','Sending the secure upload link…')}
+    <div class="flex flex-col items-center justify-center py-14">
+      <div class="w-16 h-16 rounded-full border-4 border-brand-100 border-t-brand-600 spin"></div>
+      <div class="mt-6 font-semibold">Sending link via ${state.data.channel}…</div>
+      <p class="text-sm text-slate-500 mt-1">to ${state.data.docPhone}</p>
+    </div>
+  `);
+},
+
+/* 7 — Link sent */
+linkSent(){
+  setTimeout(()=>{ if(SCREENS[state.idx].key==='linkSent') next(); }, 1800);
+  return card(`
+    <div class="flex flex-col items-center justify-center py-16 text-center">
+      <div class="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center">${phIcon('check','w-10 h-10')}</div>
+      <h1 class="text-xl font-bold mt-6">Link sent successfully</h1>
+      <p class="text-sm text-slate-500 mt-1">We’ve notified ${state.data.name} on ${state.data.channel}. Taking you to the tracker…</p>
+    </div>
+  `);
+},
+
+/* 8 — Customer still uploading */
+uploading(){
+  return card(`
+    ${h1('2 · Document collection','Customer is still uploading.')}
+    <div class="flex flex-col items-center py-6">
+      <div class="relative">
+        ${phIcon('folder','w-24 h-24 text-brand-200')}
+        <span class="absolute -top-2 -right-2 bg-brand-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full">2 captured</span>
+      </div>
+      <div class="mt-4 font-semibold">Waiting on the customer to finish</div>
+      <p class="text-sm text-slate-500">Link sent 5 mins ago</p>
+    </div>
+    ${infoBanner('If the customer is stuck, call them and walk through capturing each document in good lighting.')}
+    <div class="flex items-center justify-between mt-6">${ghost()}${primary('Refresh status','next()')}</div>
+  `);
+},
+
+/* 9 — Waiting for customer */
+waiting(){
+  return card(`
+    ${h1('2 · Document collection','Waiting for the customer’s response.')}
+    <div class="flex flex-col items-center py-6">
+      <div class="relative">
+        ${phIcon('folder','w-24 h-24 text-brand-200 pulse')}
+        <span class="absolute -top-2 -right-2 bg-emerald-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">3 captured</span>
+      </div>
+      <div class="mt-4 font-semibold">Documents are coming in…</div>
+      <p class="text-sm text-slate-500">Uploads usually complete within a few minutes.</p>
+    </div>
+    <div class="flex items-center justify-between mt-6">${ghost()}${primary('View received documents','next()')}</div>
+  `);
+},
+
+/* 10 — Received PAN */
+docPan(){
+  return card(`
+    ${h1('2 · Document collection','You’ve received 3 / 5 documents from the customer.')}
+    <div class="rounded-2xl border border-slate-200 p-4">
+      <div class="flex items-center justify-between mb-3">
+        <span class="font-semibold">PAN Card</span>
+        ${verifiedBadge('Uploaded')}
+      </div>
+      ${docPreview('PAN scan preview')}
+      <div class="flex gap-2 mt-3 flex-wrap">${pill('Original','emerald')}${pill('Not Tampered','emerald')}${pill('Quality OK','emerald')}</div>
+      <div class="grid grid-cols-3 gap-3 mt-4 text-sm">
+        <div><div class="text-[11px] text-slate-400">PAN</div><div class="font-medium">${state.data.pan}</div></div>
+        <div><div class="text-[11px] text-slate-400">Name</div><div class="font-medium">${state.data.panName}</div></div>
+        <div><div class="text-[11px] text-slate-400">DOB</div><div class="font-medium">${state.data.dob}</div></div>
+      </div>
+      <div class="flex justify-end mt-3"><button class="text-sm font-semibold text-brand-600 hover:underline">↻ Request retake</button></div>
+    </div>
+    ${navRow()}
+  `);
+},
+
+/* 11 — Document list with statuses */
+docList(){
+  const rows = [
+    {n:'PAN Card', s:'Uploaded', t:'emerald'},
+    {n:'Identity Proof', s:'Uploaded', t:'emerald'},
+    {n:'Business Proof I (GST)', s:'Uploaded', t:'emerald'},
+    {n:'Business Proof II', s:'Pending — select type', t:'amber'},
+    {n:'Bureau Check Consent', s:'Pending', t:'amber'},
+  ];
+  return card(`
+    ${h1('2 · Document collection','Review uploads and fill any gaps.')}
+    <div class="rounded-xl border border-slate-200 divide-y divide-slate-100">
+      ${rows.map(r=>`<div class="flex items-center justify-between px-4 py-3">
+        <span class="text-sm font-medium text-slate-700">${r.n}</span>${pill(r.s,r.t)}
+      </div>`).join('')}
+    </div>
+    <div class="mt-4 p-4 rounded-xl border border-slate-200">
+      <span class="text-[13px] font-medium text-slate-600">Business Proof II — choose document type</span>
+      <div class="grid sm:grid-cols-2 gap-3 mt-2">
+        ${selectField('Document type','addrProof',['Shop Establishment Cert.','Udyam / MSME','Trade License','Utility Bill'])}
+        <button class="self-end px-4 py-2.5 rounded-xl border border-brand-300 text-brand-700 font-semibold text-sm hover:bg-brand-50">📷 Capture picture</button>
+      </div>
+    </div>
+    ${navRow()}
+  `);
+},
+
+/* 12 — Bureau check consent */
+docBureau(){
+  return card(`
+    ${h1('2 · Document collection','GST uploaded — confirm the bureau check.')}
+    <div class="rounded-2xl border border-slate-200 p-4 mb-4">
+      <div class="flex items-center justify-between mb-3"><span class="font-semibold">GST Certificate</span>${verifiedBadge('Uploaded')}</div>
+      ${docPreview('GST certificate preview')}
+      <div class="flex justify-end mt-3"><button class="text-sm font-semibold text-brand-600 hover:underline">↻ Request retake</button></div>
+    </div>
+    <label class="flex items-start gap-3 p-4 rounded-xl border border-slate-200 cursor-pointer">
+      <input type="checkbox" class="mt-1 w-4 h-4 accent-brand-600" />
+      <span class="text-sm text-slate-600">The customer consents to a <b>credit bureau check</b> to assess eligibility. This is required to evaluate exposure and product eligibility.</span>
+    </label>
+    ${navRow('Continue to discipline check','next()')}
+  `);
+},
+
+/* 13 — Need of discipline / credit exposure */
+discipline(){
+  return card(`
+    ${h1('3 · Need of discipline','Confirm the customer meets the credit-exposure discipline norm.')}
+    <div class="flex flex-col items-center text-center py-6">
+      <div class="w-16 h-16 rounded-2xl bg-brand-50 text-brand-700 flex items-center justify-center">${phIcon('shield','w-8 h-8')}</div>
+      <div class="mt-4">${pill('Eligible · Exposure < ₹5 Cr','emerald')}</div>
+      <p class="text-sm text-slate-500 mt-3 max-w-md">As per regulatory guidance, customers with aggregate banking exposure below ₹5 Cr can open a current account under the standard discipline track.</p>
+    </div>
+    <label class="flex items-start gap-3 p-4 rounded-xl border border-slate-200 cursor-pointer">
+      <input type="checkbox" checked class="mt-1 w-4 h-4 accent-brand-600" />
+      <span class="text-sm text-slate-600">I confirm the customer’s aggregate exposure across the banking system is below the ₹5 Cr threshold.</span>
+    </label>
+    ${navRow('Continue to KYC','next()')}
+  `);
+},
+
+/* 15 — KYC PAN verification */
+kycPan(){
+  return card(`
+    ${h1('4 · KYC details','PAN card verification.')}
+    <div class="rounded-2xl border border-slate-200 p-4">
+      <div class="flex items-center justify-between mb-3"><span class="font-semibold">PAN Card</span>${verifiedBadge()}</div>
+      ${docPreview('PAN scan preview')}
+      <div class="grid grid-cols-3 gap-3 mt-4 text-sm">
+        <div><div class="text-[11px] text-slate-400">PAN</div><div class="font-medium">${state.data.pan}</div></div>
+        <div><div class="text-[11px] text-slate-400">Name</div><div class="font-medium">${state.data.panName}</div></div>
+        <div><div class="text-[11px] text-slate-400">DOB</div><div class="font-medium">${state.data.dob}</div></div>
+      </div>
+      <div class="flex justify-end mt-3"><button class="text-sm font-semibold text-brand-600 hover:underline">Add details manually</button></div>
+    </div>
+    ${navRow('Next','next()')}
+  `);
+},
+
+/* 16 — Identity verification DigiLocker */
+kycDigi(){
+  return card(`
+    ${h1('4 · KYC details','Identity verification.')}
+    <div class="space-y-3 mb-4">
+      <label class="flex items-center gap-3 p-4 rounded-xl border-2 ${state.data.idMethod==='digilocker'?'border-brand-500 bg-brand-50':'border-slate-200'} cursor-pointer" onclick="set('idMethod','digilocker');render()">
+        <input type="radio" ${state.data.idMethod==='digilocker'?'checked':''} class="accent-brand-600"/>
+        <div class="flex-1"><div class="font-semibold text-sm flex items-center gap-2">DigiLocker ${pill('Recommended','blue')}</div>
+          <div class="text-xs text-slate-500">Pull Aadhaar securely from the government locker linked to the customer’s phone.</div></div>
+      </label>
+      <label class="flex items-center gap-3 p-4 rounded-xl border-2 ${state.data.idMethod==='offline'?'border-brand-500 bg-brand-50':'border-slate-200'} cursor-pointer" onclick="set('idMethod','offline');render()">
+        <input type="radio" ${state.data.idMethod==='offline'?'checked':''} class="accent-brand-600"/>
+        <div class="flex-1"><div class="font-semibold text-sm">Offline Aadhaar XML</div>
+          <div class="text-xs text-slate-500">Upload a downloaded offline e-KYC file.</div></div>
+      </label>
+    </div>
+    <div class="rounded-xl border border-slate-200 p-4">
+      <div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold">Fetched identity</span>${verifiedBadge()}</div>
+      <div class="grid sm:grid-cols-3 gap-3 text-sm">
+        <div><div class="text-[11px] text-slate-400">Name</div><div class="font-medium">${state.data.panName}</div></div>
+        <div><div class="text-[11px] text-slate-400">DOB</div><div class="font-medium">${state.data.dob}</div></div>
+        <div class="sm:col-span-1"><div class="text-[11px] text-slate-400">Address on file</div><div class="font-medium text-xs">${state.data.address}</div></div>
+      </div>
+    </div>
+    ${navRow('Next','next()')}
+  `);
+},
+
+/* 17 — Identity verification Face auth */
+kycFace(){
+  return card(`
+    ${h1('4 · KYC details','Identity verification — Aadhaar Face Authentication.')}
+    <div class="rounded-2xl border-2 border-brand-500 bg-brand-50 p-4 mb-4 flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center">${phIcon('user','w-5 h-5')}</div>
+      <div class="flex-1"><div class="font-semibold text-sm flex items-center gap-2">Verify via Face Auth app ${pill('Recommended','blue')}</div>
+      <div class="text-xs text-slate-500">Liveness + Aadhaar match completed on the customer’s device.</div></div>
+      ${verifiedBadge('Verified')}
+    </div>
+    <div class="rounded-xl border border-slate-200 p-4">
+      ${field('Aadhaar number','',{ph:'XXXX XXXX 4321'})}
+      <div class="grid sm:grid-cols-2 gap-3 mt-3 text-sm">
+        <div><div class="text-[11px] text-slate-400">Name</div><div class="font-medium">${state.data.panName}</div></div>
+        <div><div class="text-[11px] text-slate-400">DOB</div><div class="font-medium">${state.data.dob}</div></div>
+      </div>
+    </div>
+    ${navRow('Next','next()')}
+  `);
+},
+
+/* 18 — Address verification */
+kycAddr(){
+  return card(`
+    ${h1('4 · KYC details','Address verification.')}
+    <div class="rounded-xl border border-slate-200 p-4 mb-4">
+      <div class="text-[11px] text-slate-400">Current address (from Aadhaar)</div>
+      <div class="text-sm font-medium mt-1">${state.data.address}</div>
+    </div>
+    <span class="text-[13px] font-medium text-slate-600">Is this the customer’s present communication address?</span>
+    <div class="mt-2 mb-4">${radioRow('addrSame',[{val:'yes',label:'Yes'},{val:'no',label:'No'}])}</div>
+    <div class="grid sm:grid-cols-2 gap-3">
+      ${selectField('Address proof type','addrProof',['Utility Bill','Bank Statement','Rent Agreement','Passport'])}
+      <button class="self-end px-4 py-2.5 rounded-xl border border-brand-300 text-brand-700 font-semibold text-sm hover:bg-brand-50">⬆ Upload address proof</button>
+    </div>
+    <div class="flex justify-end mt-2"><button class="text-sm font-semibold text-brand-600 hover:underline">Add details manually</button></div>
+    ${navRow('Next','next()')}
+  `);
+},
+
+/* 19 — Signature */
+kycSign(){
+  return card(`
+    ${h1('4 · KYC details','Capture signature.')}
+    <div class="rounded-xl border border-slate-200 p-3 mb-3">
+      <canvas id="sig" width="640" height="220" class="sigpad w-full bg-slate-50 rounded-lg border border-dashed border-slate-300"></canvas>
+      <div class="flex justify-between mt-2">
+        <span class="text-xs text-slate-400">Ask the customer to sign within the box</span>
+        <button onclick="clearSig()" class="text-sm font-semibold text-brand-600 hover:underline">Clear / Retake</button>
+      </div>
+    </div>
+    <div class="mb-2"><div class="flex justify-between text-xs text-slate-500 mb-1"><span>KYC progress</span><span>4 / 5</span></div>
+      <div class="h-2 bg-slate-100 rounded-full"><div class="h-2 bg-brand-600 rounded-full" style="width:80%"></div></div></div>
+    ${navRow('Next','next()')}
+  `);
+},
+
+/* 20 — Selfie capture */
+selfie(){
+  return card(`
+    ${h1('4 · KYC details','Capture customer selfie.')}
+    <div class="flex flex-col items-center py-4">
+      <div class="relative w-56 h-56 rounded-full bg-slate-900 overflow-hidden flex items-center justify-center">
+        <div class="absolute inset-3 rounded-full border-4 border-dashed border-white/40"></div>
+        ${phIcon('user','w-24 h-24 text-white/30')}
+      </div>
+      <p class="text-sm text-amber-600 mt-3">Position the customer’s face within the circle</p>
+      <div class="flex items-center gap-6 mt-5">
+        <button class="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center">⚡</button>
+        <button onclick="next()" class="w-16 h-16 rounded-full bg-brand-600 ring-4 ring-brand-100 hover:bg-brand-700"></button>
+        <button class="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center">🖼️</button>
+      </div>
+    </div>
+    <div class="flex items-center justify-between mt-2">${ghost()}${primary('Use this selfie','next()')}</div>
+  `);
+},
+
+/* 21 — Business GST verification */
+bizGst(){
+  return card(`
+    ${h1('5 · Business details','Business proof — GST verification.')}
+    <div class="grid sm:grid-cols-2 gap-4 mb-4">
+      ${selectField('Document type','bizDocType',['GST Certificate','Udyam / MSME','Shop Establishment'])}
+      ${field('GSTIN','gst')}
+    </div>
+    <div class="rounded-2xl border border-slate-200 p-4">
+      <div class="flex items-center justify-between mb-3"><span class="font-semibold">Uploaded document</span>${verifiedBadge()}</div>
+      ${docPreview('GST certificate preview')}
+      <div class="grid sm:grid-cols-3 gap-3 mt-4 text-sm">
+        <div><div class="text-[11px] text-slate-400">Legal name</div><div class="font-medium">${state.data.gstLegal}</div></div>
+        <div><div class="text-[11px] text-slate-400">Trade name</div><div class="font-medium">${state.data.gstCompany}</div></div>
+        <div><div class="text-[11px] text-slate-400">Address</div><div class="font-medium text-xs">${state.data.gstAddr}</div></div>
+      </div>
+    </div>
+    <div class="flex items-center justify-between mt-6">
+      ${ghost()}
+      <div class="flex gap-2">
+        <button class="px-5 py-2.5 rounded-xl border border-brand-300 text-brand-700 font-semibold text-sm hover:bg-brand-50">Initiate verification</button>
+        ${primary('Save & Next','next()')}
+      </div>
+    </div>
+  `);
+},
+
+/* 22 — Business address verification */
+bizAddr(){
+  return card(`
+    ${h1('5 · Business details','Business address verification.')}
+    <div class="rounded-xl border border-slate-200 p-4 mb-4">
+      <div class="text-[11px] text-slate-400">Principal place of business (from GST)</div>
+      <div class="text-sm font-medium mt-1">${state.data.gstAddr}</div>
+    </div>
+    <span class="text-[13px] font-medium text-slate-600">Does the business operate from this address?</span>
+    <div class="mt-2 mb-4">${radioRow('bizAddrSame',[{val:'yes',label:'Yes'},{val:'no',label:'No'}])}</div>
+    <div class="grid sm:grid-cols-2 gap-4">
+      ${selectField('Address proof type','bizAddrProof',['Utility Bill','Rent Agreement','Property Tax Receipt','GST Certificate'])}
+      <div>
+        <span class="text-[13px] font-medium text-slate-600">Premises</span>
+        <div class="mt-2">${radioRow('premises',[{val:'owned',label:'Owned'},{val:'rented',label:'Rented'}])}</div>
+      </div>
+    </div>
+    ${navRow('Save & Next','next()')}
+  `);
+},
+
+/* 23 — Business proof verification completed */
+bizProof(){
+  return card(`
+    ${h1('5 · Business details','Business proof documents.')}
+    <div class="space-y-4">
+      <div class="rounded-2xl border border-slate-200 p-4">
+        <div class="flex items-center justify-between mb-3"><span class="font-semibold">Business Proof I — GST</span>${verifiedBadge()}</div>
+        ${docPreview('GST certificate preview')}
+      </div>
+      <div class="rounded-2xl border border-slate-200 p-4">
+        <div class="flex items-center justify-between mb-3"><span class="font-semibold">Business Proof II — Shop Est.</span>
+          <button class="text-sm font-semibold text-brand-600 hover:underline">↻ Retake</button></div>
+        ${docPreview('Shop establishment cert. preview')}
+      </div>
+    </div>
+    ${navRow('Next','next()')}
+  `);
+},
+
+/* 24 — Additional business details */
+bizMore(){
+  return card(`
+    ${h1('5 · Business details','Additional details.')}
+    <div class="grid sm:grid-cols-2 gap-4">
+      ${selectField('Nature of industry','industry',['Retail Trade','Manufacturing','Services','Wholesale','Agriculture','Technology'])}
+      ${selectField('Nature of business','bizNature',['Trading','Manufacturing','Service Provider','Distribution'])}
+      ${selectField('Nature of activity','activity',['B2C Sales','B2B Sales','Export','Import','Marketplace'])}
+      ${field('Annual turnover','turnover',{ph:'ex: 2 Cr – 5 Cr'})}
+      ${field('Date of incorporation','incorp',{ph:'DD/MM/YYYY'})}
+      <div>
+        <span class="text-[13px] font-medium text-slate-600">Engaged in import / export?</span>
+        <div class="mt-2">${radioRow('importExport',[{val:'no',label:'No'},{val:'yes',label:'Yes'}])}</div>
+      </div>
+    </div>
+    ${navRow('Save & Next','next()')}
+  `);
+},
+
+/* 25 — FATCA form */
+fatca(){
+  return card(`
+    ${h1('6 · FATCA declaration','Foreign tax & beneficial ownership declaration.')}
+    <div class="space-y-4">
+      <div class="p-4 rounded-xl border border-slate-200">
+        <span class="text-sm font-medium text-slate-700">Is the customer a tax resident of any country outside India?</span>
+        <div class="mt-2">${radioRow('fatcaTax',[{val:'no',label:'No'},{val:'yes',label:'Yes'}])}</div>
+      </div>
+      <div class="p-4 rounded-xl border border-slate-200">
+        <span class="text-sm font-medium text-slate-700">Is there a beneficial owner holding ≥ 25% stake?</span>
+        <div class="mt-2">${radioRow('fatcaBo',[{val:'no',label:'No'},{val:'yes',label:'Yes'}])}</div>
+      </div>
+      <div class="p-4 rounded-xl border border-dashed border-slate-300 flex items-center justify-between">
+        <span class="text-sm text-slate-600">Upload FATCA annexure (if applicable)</span>
+        <button class="px-4 py-2 rounded-xl border border-brand-300 text-brand-700 font-semibold text-sm hover:bg-brand-50">⬆ Upload</button>
+      </div>
+    </div>
+    ${navRow('Next','next()')}
+  `);
+},
+
+/* 26 — Site verification photos */
+sitePhoto(){
+  return card(`
+    ${h1('6 · Site verification','Capture geo-tagged photos of the business premises.')}
+    <span class="text-[13px] font-medium text-slate-600">Location type</span>
+    <div class="mt-2 mb-4">${radioRow('siteType',[{val:'residence',label:'Residence'},{val:'office',label:'Office'},{val:'warehouse',label:'Warehouse'},{val:'factory',label:'Factory'}])}</div>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div class="rounded-2xl border border-slate-200 p-3">
+        <div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold">Inventory / stock area</span><button class="text-xs font-semibold text-brand-600">↻ Retake</button></div>
+        ${docPreview('Photo captured')}
+      </div>
+      <div class="rounded-2xl border border-slate-200 p-3">
+        <div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold">Main entrance</span><button class="text-xs font-semibold text-brand-600">↻ Retake</button></div>
+        ${docPreview('Photo captured')}
+      </div>
+    </div>
+    ${infoBanner('Photos are geo-tagged and time-stamped to confirm presence at the registered location.')}
+    ${navRow('Next','next()')}
+  `);
+},
+
+/* 27 — Site verification nameplate */
+siteNamep(){
+  return card(`
+    ${h1('6 · Site verification','Business nameplate & final checks.')}
+    <div class="rounded-2xl border border-slate-200 p-3 mb-4">
+      <div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold">Business nameplate / signboard</span><button class="text-xs font-semibold text-brand-600">↻ Retake</button></div>
+      ${docPreview('Nameplate photo')}
+    </div>
+    <div class="rounded-xl border border-slate-200 p-4 mb-4">
+      <div class="text-sm font-semibold mb-3">Final verification steps</div>
+      <label class="flex items-center gap-3 mb-2 cursor-pointer"><input type="checkbox" checked class="w-4 h-4 accent-brand-600"/><span class="text-sm text-slate-600">Address verification</span></label>
+      <label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked class="w-4 h-4 accent-brand-600"/><span class="text-sm text-slate-600">Business existence verification</span></label>
+    </div>
+    <div class="flex items-center justify-between mt-6">${ghost()}
+      <button onclick="next()" class="px-5 py-2.5 rounded-xl bg-brand-600 text-white font-semibold text-sm hover:bg-brand-700">Initiate verification</button>
+    </div>
+  `);
+},
+
+/* 28 — Site verification result */
+siteResult(){
+  return card(`
+    ${h1('6 · Site verification','Verification complete.')}
+    <div class="space-y-3">
+      <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-start gap-3">
+        <div class="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">${phIcon('check','w-4 h-4')}</div>
+        <div><div class="font-semibold text-sm text-emerald-800">Address verified — within 500 m of GST address</div>
+          <div class="text-xs text-emerald-700 mt-0.5">${state.data.gstAddr}</div></div>
+      </div>
+      <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-start gap-3">
+        <div class="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">${phIcon('check','w-4 h-4')}</div>
+        <div><div class="font-semibold text-sm text-emerald-800">Business existence verified</div>
+          <div class="text-xs text-emerald-700 mt-0.5">Nameplate & premises confirmed.</div></div>
+      </div>
+    </div>
+    <span class="text-[13px] font-medium text-slate-600 block mt-4">Does the captured location match the registered address?</span>
+    <div class="mt-2">${radioRow('siteMatch',[{val:'yes',label:'Yes'},{val:'no',label:'No'}])}</div>
+    ${navRow('Save & Next','next()')}
+  `);
+},
+
+/* 29 — Product selection */
+product(){
+  const products = [
+    {name:'Digital First Account', mab:'₹10,000', f:['Zero setup fee','UPI & IMPS included','Mobile-first dashboard']},
+    {name:'Growth Business Account', mab:'₹25,000', f:['Higher transaction limits','Dedicated RM','Bulk payouts']},
+    {name:'Smart E-Commerce Account', mab:'₹50,000', f:['Payment-gateway ready','Auto-reconciliation','Higher funding eligibility'], reco:true},
+  ];
+  return card(`
+    ${h1('7 · Account setup','Choose the current account product that fits the business.')}
+    <div class="space-y-3">
+      ${products.map(p=>`
+      <label onclick="set('product','${p.name}');render()" class="block p-4 rounded-2xl border-2 cursor-pointer transition ${state.data.product===p.name?'border-brand-500 bg-brand-50':'border-slate-200 hover:border-slate-300'}">
+        <div class="flex items-center justify-between">
+          <div class="font-semibold flex items-center gap-2">${p.name} ${p.reco?pill('Best fit','blue'):''}</div>
+          <div class="text-sm text-slate-500">MAB ${p.mab}</div>
+        </div>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2">${p.f.map(x=>`<span class="text-xs text-slate-600 flex items-center gap-1">✓ ${x}</span>`).join('')}</div>
+      </label>`).join('')}
+    </div>
+    <div class="flex items-center justify-between mt-6">
+      <button onclick="gotoKey('bankStmt')" class="text-sm font-semibold text-brand-600 hover:underline">Unlock exclusive funding offers →</button>
+      <div class="flex gap-2">${ghost()}${primary('Continue for funding',"gotoKey('bankStmt')")}</div>
+    </div>
+  `);
+},
+
+/* 30 — Bank statement upload modal (rendered via renderBankStmtModal) */
+bankStmt(){ return renderBankStmtModal(); },
+
+/* 31 — Bank details */
+bankDetails(){
+  return card(`
+    ${h1('7 · Account setup','Confirm product & add settlement bank details.')}
+    <div class="rounded-2xl border border-brand-200 bg-brand-50 p-4 mb-4">
+      <div class="font-semibold flex items-center gap-2">${state.data.product} ${pill('Selected','blue')}</div>
+      <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-600">
+        <span>✓ Payment-gateway ready</span><span>✓ Auto-reconciliation</span><span>✓ Higher funding eligibility</span>
+      </div>
+      <div class="mt-2">${pill('Eligible for higher funding — based on bank statement','emerald')}</div>
+    </div>
+    <div class="rounded-xl border border-slate-200 p-4">
+      <div class="text-sm font-semibold mb-3">Add existing bank account</div>
+      <div class="grid sm:grid-cols-3 gap-3">
+        <button class="px-4 py-3 rounded-xl border border-slate-300 text-sm font-medium hover:bg-slate-50">⬆ Upload cheque</button>
+        <button class="px-4 py-3 rounded-xl border border-slate-300 text-sm font-medium hover:bg-slate-50">📷 Capture</button>
+        <button class="px-4 py-3 rounded-xl border border-slate-300 text-sm font-medium hover:bg-slate-50">⌨ Add manually</button>
+      </div>
+    </div>
+    ${navRow('Save & Next','next()')}
+  `);
+},
+
+/* 32 — RM declaration basic */
+rmBasic(){
+  return card(`
+    ${h1('8 · RM declaration','Relationship Manager & branch details.')}
+    <div class="text-sm font-semibold text-slate-700 mb-2">Basic details</div>
+    <div class="grid sm:grid-cols-2 gap-4">
+      ${field('RM name','rmName')}
+      ${field('Employee ID','rmId')}
+      ${selectField('RM channel','rmChannel',['Field Sales','Branch','Tele-sales','DSA'])}
+      ${field('Date of sourcing','rmDate',{ph:'DD/MM/YYYY'})}
+    </div>
+    <div class="text-sm font-semibold text-slate-700 mt-5 mb-2">Branch details</div>
+    <div class="grid sm:grid-cols-2 gap-4">
+      ${field('Branch code','branch')}
+      ${selectField('Region','rmRegion',['West','North','South','East'])}
+    </div>
+    ${navRow('Save & Next','next()')}
+  `);
+},
+
+/* 33 — RM declaration selfie & signature */
+rmSelfie(){
+  return card(`
+    ${h1('8 · RM declaration','RM selfie & sign-off.')}
+    <label class="flex items-start gap-3 p-4 rounded-xl border border-slate-200 cursor-pointer mb-4">
+      <input type="checkbox" checked class="mt-1 w-4 h-4 accent-brand-600"/>
+      <span class="text-sm text-slate-600">I confirm I have personally met the customer and verified all information collected.</span>
+    </label>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div class="rounded-2xl border border-slate-200 p-3">
+        <div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold">RM selfie</span><button class="text-xs font-semibold text-brand-600">↻ Retake</button></div>
+        <div class="aspect-square rounded-xl bg-slate-100 flex items-center justify-center">${phIcon('user','w-16 h-16 text-slate-300')}</div>
+      </div>
+      <div class="rounded-2xl border border-slate-200 p-3">
+        <div class="text-sm font-semibold mb-2">Sign-off method</div>
+        <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 mb-2 cursor-pointer"><input type="radio" name="rmsign" checked class="accent-brand-600"/><span class="text-sm">E-signature (OTP to ${state.data.phone})</span></label>
+        <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer"><input type="radio" name="rmsign" class="accent-brand-600"/><span class="text-sm">Wet signature upload</span></label>
+      </div>
+    </div>
+    ${navRow('Save & Next','next()')}
+  `);
+},
+
+/* 34 — Post onboarding quick steps */
+postOnb(){
+  return card(`
+    ${h1('9 · Post onboarding','Quick steps before we wrap up.')}
+    <div class="rounded-xl border border-slate-200 p-4 flex items-center justify-between mb-3">
+      <div><div class="font-semibold text-sm">Enable WhatsApp account updates</div>
+        <div class="text-xs text-slate-500">Ask the customer to consent to transaction alerts & service updates.</div></div>
+      <button class="px-4 py-2 rounded-xl border border-brand-300 text-brand-700 font-semibold text-sm hover:bg-brand-50">Ask consent</button>
+    </div>
+    <div class="rounded-xl border border-slate-200 p-4 flex items-center justify-between">
+      <div><div class="font-semibold text-sm">Review the full application</div>
+        <div class="text-xs text-slate-500">Preview everything before customer approval.</div></div>
+      <button onclick="next()" class="px-4 py-2 rounded-xl border border-brand-300 text-brand-700 font-semibold text-sm hover:bg-brand-50">Preview</button>
+    </div>
+    ${navRow('Continue to preview','next()')}
+  `);
+},
+
+/* 35 — Preview part A */
+previewA(){
+  const row = (label,val) => `<div class="flex items-start justify-between py-2.5 border-b border-slate-100 last:border-0">
+    <span class="text-sm text-slate-500">${label}</span>
+    <span class="text-sm font-medium text-right max-w-[60%]">${val}</span></div>`;
+  return card(`
+    ${h1('Preview','Review the full application before sending for customer approval.')}
+    <div class="space-y-4">
+      <div class="rounded-xl border border-slate-200 p-4">
+        <div class="flex items-center justify-between mb-1"><span class="font-semibold text-sm">Customer & KYC</span><button class="text-xs font-semibold text-brand-600">✎ Edit</button></div>
+        ${row('Name',state.data.panName)}${row('PAN',state.data.pan)}${row('Entity',state.data.entity)}${row('Address',state.data.address)}
+      </div>
+      <div class="rounded-xl border border-slate-200 p-4">
+        <div class="flex items-center justify-between mb-1"><span class="font-semibold text-sm">Business & FATCA</span><button class="text-xs font-semibold text-brand-600">✎ Edit</button></div>
+        ${row('Trade name',state.data.gstCompany)}${row('GSTIN',state.data.gst)}${row('Turnover',state.data.turnover)}${row('Foreign tax resident','No')}
+      </div>
+    </div>
+    ${navRow('Next','next()')}
+  `);
+},
+
+/* 36 — Preview part B + approval sent */
+previewB(){
+  return card(`
+    ${h1('Preview','Product summary & customer approval.')}
+    <div class="rounded-2xl border border-brand-200 bg-brand-50 p-4 mb-4">
+      <div class="font-semibold flex items-center gap-2">${state.data.product} ${pill('Selected','blue')}</div>
+      <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-600">
+        <span>✓ Fast payouts</span><span>✓ Seamless checkouts</span><span>✓ Auto-reconciliation</span><span>✓ Dedicated RM</span>
+      </div>
+    </div>
+    <div id="approvalState">
+      <div class="flex items-center justify-between mt-2">${ghost()}
+        <button onclick="sendApproval()" class="px-5 py-2.5 rounded-xl bg-brand-600 text-white font-semibold text-sm hover:bg-brand-700">Get customer approval</button>
+      </div>
+    </div>
+  `);
+},
+
+/* 37 — Submitted */
+submitted(){
+  return card(`
+    <div class="flex flex-col items-center justify-center py-16 text-center">
+      <div class="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center">${phIcon('check','w-12 h-12')}</div>
+      <h1 class="text-2xl font-bold mt-6">Application submitted successfully</h1>
+      <p class="text-sm text-slate-500 mt-2 max-w-md">${state.data.name}’s current account application is now in processing. Use the reference below to track its status.</p>
+      <div class="mt-5 px-5 py-3 rounded-xl bg-slate-100 font-mono font-semibold text-brand-800">${state.data.ref}</div>
+      <button onclick="state.idx=0;render()" class="mt-8 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold text-sm hover:bg-slate-50">Start a new application</button>
+    </div>
+  `,'text-center');
+},
+
+};
+
+/* ---------- screen 30 needs the product page behind a modal ---------- */
+function renderBankStmtModal(){
+  // render product page content underneath, then overlay modal
+  const under = VIEWS.product();
+  return under + `
+  <div class="fixed inset-0 z-30 bg-black/40 flex items-center justify-center p-4 fade">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6">
+      <h2 class="text-lg font-bold">Check if you qualify for tailored funding offers</h2>
+      <p class="text-sm text-slate-500 mt-1">Upload the customer’s most recent 1-month bank statement to assess funding eligibility.</p>
+      <div class="mt-4 rounded-xl border-2 border-dashed border-slate-300 p-6 flex flex-col items-center text-slate-400">
+        ${phIcon('folder','w-10 h-10 text-slate-300')}
+        <span class="text-xs mt-2">Drop file or</span>
+        <button class="mt-1 text-sm font-semibold text-brand-600">Browse</button>
+      </div>
+      <div class="flex justify-end gap-2 mt-5">
+        ${btn('Cancel','gotoKey(\'bankDetails\')','bg-white border border-slate-300 text-slate-600 hover:bg-slate-50')}
+        ${btn('Upload & continue','gotoKey(\'bankDetails\')','bg-brand-600 text-white hover:bg-brand-700')}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------- approval flow on screen 36 ---------- */
+function sendApproval(){
+  const el = $('#approvalState');
+  el.innerHTML = `<div class="flex flex-col items-center py-6"><div class="w-12 h-12 rounded-full border-4 border-brand-100 border-t-brand-600 spin"></div><p class="text-sm text-slate-500 mt-3">Sending approval link to the customer…</p></div>`;
+  setTimeout(()=>{
+    el.innerHTML = `<div class="flex flex-col items-center py-6 text-center">
+      <div class="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center">${phIcon('check','w-8 h-8')}</div>
+      <div class="font-semibold mt-3">Approval link sent</div>
+      <p class="text-sm text-slate-500 mt-1">Once the customer approves, the application is submitted.</p>
+      <button onclick="next()" class="mt-5 px-5 py-2.5 rounded-xl bg-brand-600 text-white font-semibold text-sm hover:bg-brand-700">Simulate approval & submit</button>
+    </div>`;
+  }, 1600);
+}
+
+/* ---------- signature canvas ---------- */
+let sigCtx=null;
+function initSig(){
+  const c = $('#sig'); if(!c) return;
+  sigCtx = c.getContext('2d');
+  sigCtx.lineWidth=2.5; sigCtx.lineCap='round'; sigCtx.strokeStyle='#1f2937';
+  let drawing=false;
+  const pos=e=>{const r=c.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*(c.width/r.width),y:(t.clientY-r.top)*(c.height/r.height)};};
+  const start=e=>{drawing=true;const p=pos(e);sigCtx.beginPath();sigCtx.moveTo(p.x,p.y);e.preventDefault();};
+  const move=e=>{if(!drawing)return;const p=pos(e);sigCtx.lineTo(p.x,p.y);sigCtx.stroke();e.preventDefault();};
+  const end=()=>drawing=false;
+  c.addEventListener('mousedown',start);c.addEventListener('mousemove',move);window.addEventListener('mouseup',end);
+  c.addEventListener('touchstart',start);c.addEventListener('touchmove',move);c.addEventListener('touchend',end);
+}
+function clearSig(){ if(sigCtx){const c=$('#sig');sigCtx.clearRect(0,0,c.width,c.height);} }
+
+/* ---------- master render ---------- */
+function render(){
+  const cur = SCREENS[state.idx];
+  let body;
+  if(cur.key==='bankStmt'){ body = renderBankStmtModal(); }
+  else { body = VIEWS[cur.key](); }
+  $('#app').innerHTML = chrome(body);
+  if(cur.key==='kycSign') initSig();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+render();
+</script>
+</body>
+</html>
