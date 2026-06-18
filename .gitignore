@@ -6,3 +6,5 @@ dist-ssr
 .vite
 *.log
 files.zip
+
+scripts/.verify-scores.mjs
