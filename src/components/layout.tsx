@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -50,19 +51,23 @@ export function ScreenHeader({ title, stepLabel, progress = 0, showBack = true, 
   );
 }
 
-export function Body({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <ScrollView
-      className="flex-1 bg-page"
-      contentContainerClassName={cn('gap-6 px-5 pb-6 pt-6', className)}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      automaticallyAdjustKeyboardInsets
-    >
-      {children}
-    </ScrollView>
-  );
-}
+export const Body = forwardRef<ScrollView, { children: React.ReactNode; className?: string }>(
+  ({ children, className }, ref) => {
+    return (
+      <ScrollView
+        ref={ref}
+        className="flex-1 bg-page"
+        contentContainerClassName={cn('gap-6 px-5 pb-6 pt-6', className)}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
+        {children}
+      </ScrollView>
+    );
+  },
+);
+Body.displayName = 'Body';
 
 export function BottomBar({ children, hint }: { children: React.ReactNode; hint?: React.ReactNode }) {
   const insets = useSafeAreaInsets();

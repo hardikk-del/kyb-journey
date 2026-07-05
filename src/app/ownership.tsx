@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
-import { Calendar, MapPin, Plus, Trash2, User } from 'lucide-react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Calendar, MapPin, Plus, Trash2, User, X } from 'lucide-react-native';
 
 import { Body, BottomBar, PrimaryCTA, ScreenHeader } from '@/components/layout';
+import { Button } from '@/components/Button';
+import { Input } from '@/components/Input';
 import { Txt } from '@/components/Txt';
 import { Checkbox } from '@/components/kyb/controls';
 import { ENTITY_META, membersInfoFor } from '@/lib/entities';
@@ -82,7 +85,7 @@ function ShareRow({ share, onShare, isUbo, note }: { share: string; onShare: (v:
 
 /* ---------------- owner card ---------------- */
 
-function OwnerCard({ owner, note, onChange, onShare, onRemove }: { owner: Owner; note: number | null; onChange: (patch: Partial<Owner>) => void; onShare: (v: string) => void; onRemove: () => void }) {
+function OwnerCard({ owner, note, onShare, onRemove }: { owner: Owner; note: number | null; onShare: (v: string) => void; onRemove: () => void }) {
   const { name, dob, address, din, share, isDirector } = owner;
   const isUbo = (Number(share) || 0) > UBO_THRESHOLD;
 
@@ -119,21 +122,32 @@ function OwnerCard({ owner, note, onChange, onShare, onRemove }: { owner: Owner;
           </View>
         </View>
       ) : (
-        <View className="flex-row items-center gap-2.5">
+        <View className="flex-row items-start gap-2.5">
           <View className="h-9 w-9 items-center justify-center rounded-full bg-grey-100">
             <User size={18} color={C.ink3} strokeWidth={2} />
           </View>
-          <TextInput
-            value={name}
-            onChangeText={(t) => onChange({ name: t })}
-            placeholder="Shareholder / beneficial owner name"
-            placeholderTextColor={PH}
-            style={inputStyle}
-            className="h-10 flex-1 rounded-lg border border-line-strong bg-card px-3 text-[14px] text-ink"
-          />
-          <Pressable onPress={onRemove} hitSlop={6} className="h-9 w-9 items-center justify-center rounded-lg border border-line active:bg-grey-50">
-            <Trash2 size={16} color={C.neg} strokeWidth={2} />
-          </Pressable>
+          <View className="flex-1 gap-1">
+            <View className="flex-row items-start justify-between gap-2">
+              <Txt weight={700} numberOfLines={1} className="flex-1 text-[14px] text-ink">
+                {name}
+              </Txt>
+              <Pressable onPress={onRemove} hitSlop={6} className="h-7 w-7 items-center justify-center rounded-lg border border-line active:bg-grey-50">
+                <Trash2 size={14} color={C.neg} strokeWidth={2} />
+              </Pressable>
+            </View>
+            {dob ? (
+              <View className="flex-row items-center gap-1.5">
+                <Calendar size={12} color={C.ink3} strokeWidth={2} />
+                <Txt className="text-[12px] text-ink-3">DOB · {dob}</Txt>
+              </View>
+            ) : null}
+            {address ? (
+              <View className="flex-row items-start gap-1.5">
+                <MapPin size={12} color={C.ink3} strokeWidth={2} style={{ marginTop: 2 }} />
+                <Txt className="flex-1 text-[12px] leading-[16px] text-ink-3">{address}</Txt>
+              </View>
+            ) : null}
+          </View>
         </View>
       )}
 
@@ -155,6 +169,110 @@ function CheckRow({ checked, onToggle, children }: { checked: boolean; onToggle:
   );
 }
 
+/* ---------------- add shareholder modal ---------------- */
+
+interface NewOwner {
+  name: string;
+  dob: string;
+  address: string;
+  share: string;
+}
+
+function AddShareholderModal({ left, onAdd, onClose }: { left: number; onAdd: (o: NewOwner) => void; onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  const [name, setName] = useState('');
+  const [dob, setDob] = useState('');
+  const [address, setAddress] = useState('');
+  const [share, setShare] = useState('');
+
+  const shareNum = Number(share) || 0;
+  const isUbo = shareNum > UBO_THRESHOLD;
+  const canSave = name.trim().length > 0 && shareNum > 0;
+
+  // Cap entry to whatever's left of 100% so the total can never exceed it.
+  const onShareChange = (t: string) => {
+    const digits = t.replace(/[^0-9]/g, '').slice(0, 3);
+    setShare(digits === '' ? '' : String(Math.min(Number(digits), left)));
+  };
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1 justify-end">
+        <Pressable className="absolute inset-0 bg-black/40" onPress={onClose} />
+        <View style={{ maxHeight: '88%' }} className="rounded-t-2xl border-t border-line bg-page">
+          <View className="flex-row items-start justify-between px-5 pt-5">
+            <View className="flex-1">
+              <Txt weight={700} className="text-[16px] tracking-[-0.2px] text-ink">
+                Add shareholder
+              </Txt>
+              <Txt className="mt-0.5 text-[12px] text-ink-3">
+                {left > 0 ? `${left}% of shareholding still to allocate` : 'Shareholding is fully allocated (100%)'}
+              </Txt>
+            </View>
+            <Pressable onPress={onClose} hitSlop={8} className="h-8 w-8 items-center justify-center rounded-full active:bg-grey-100">
+              <X size={20} color={C.ink2} strokeWidth={2} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerClassName="px-5 pt-4"
+            contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+          >
+            <View className="gap-3.5">
+              <Input label="Full name" required value={name} onChangeText={setName} placeholder="As per PAN / ID proof" autoFocus />
+              <Input label="Date of birth" value={dob} onChangeText={setDob} placeholder="DD MMM YYYY" />
+              <Input label="Residential address" value={address} onChangeText={setAddress} placeholder="Flat, street, city, PIN" />
+
+              <View className="gap-1.5">
+                <View className="flex-row items-center gap-2">
+                  <Txt weight={600} className="text-[13px] text-ink">
+                    Shareholding<Txt className="text-red-500"> *</Txt>
+                  </Txt>
+                  {isUbo ? (
+                    <View className="h-5 flex-row items-center rounded-full bg-blue-50 px-2">
+                      <Txt weight={600} className="text-[10px] text-brand">
+                        Beneficial owner
+                      </Txt>
+                    </View>
+                  ) : null}
+                </View>
+                <View className={cn('h-12 flex-row items-center rounded-lg border px-3', share ? 'border-blue-500 bg-blue-50' : 'border-line-strong bg-card')}>
+                  <TextInput
+                    value={share}
+                    onChangeText={onShareChange}
+                    keyboardType="numeric"
+                    placeholder="Enter shareholding %"
+                    placeholderTextColor={PH}
+                    style={inputStyle}
+                    className="flex-1 text-[15px] text-ink"
+                  />
+                  <Txt weight={600} className="ml-1 text-[15px] text-ink-3">
+                    %
+                  </Txt>
+                </View>
+              </View>
+            </View>
+
+            <View className="mt-5">
+              <Button
+                label="Add shareholder"
+                fullWidth
+                disabled={!canSave}
+                onPress={() => {
+                  onAdd({ name: name.trim(), dob: dob.trim(), address: address.trim(), share });
+                  onClose();
+                }}
+              />
+            </View>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 /* ---------------- screen ---------------- */
 
 export default function OwnershipScreen() {
@@ -166,8 +284,9 @@ export default function OwnershipScreen() {
   const regAddress = meta?.registeredOffice ?? 'Unit 4, Lotus Industrial Estate, Andheri East, Mumbai 400059';
   const doi = meta?.dateOfIncorporation ?? '14 Mar 2016';
 
-  const [confirmEntity, setConfirmEntity] = useState(false);
-  const [confirmOwnership, setConfirmOwnership] = useState(false);
+  const [confirmEntity, setConfirmEntity] = useState(true);
+  const [confirmOwnership, setConfirmOwnership] = useState(true);
+  const [confirmPep, setConfirmPep] = useState(true);
   const [owners, setOwners] = useState<Owner[]>(() =>
     membersInfoFor(entity).map((m, i) => ({
       id: `d${i}`,
@@ -182,6 +301,10 @@ export default function OwnershipScreen() {
 
   // Shows which owner's input got capped, and how much was left to allocate.
   const [capNote, setCapNote] = useState<{ id: string; left: number } | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+
+  const allocated = owners.reduce((sum, o) => sum + (Number(o.share) || 0), 0);
+  const left = Math.max(0, 100 - allocated);
 
   const setOwner = (id: string, patch: Partial<Owner>) =>
     setOwners((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
@@ -201,13 +324,13 @@ export default function OwnershipScreen() {
     setOwners((prev) => prev.filter((o) => o.id !== id));
     setCapNote((prev) => (prev?.id === id ? null : prev));
   };
-  const addOwner = () =>
+  const addOwner = (o: NewOwner) =>
     setOwners((prev) => [
       ...prev,
-      { id: `s${Date.now()}`, name: '', dob: '', address: '', din: '', share: '', isDirector: false },
+      { id: `s${Date.now()}`, name: o.name, dob: o.dob, address: o.address, din: '', share: o.share, isDirector: false },
     ]);
 
-  const complete = confirmEntity && confirmOwnership;
+  const complete = confirmEntity && confirmOwnership && confirmPep;
 
   return (
     <View className="flex-1 bg-page">
@@ -242,14 +365,13 @@ export default function OwnershipScreen() {
               key={o.id}
               owner={o}
               note={capNote?.id === o.id ? capNote.left : null}
-              onChange={(patch) => setOwner(o.id, patch)}
               onShare={(digits) => setShare(o.id, digits)}
               onRemove={() => removeOwner(o.id)}
             />
           ))}
 
           <Pressable
-            onPress={addOwner}
+            onPress={() => setShowAdd(true)}
             className="h-12 flex-row items-center justify-center gap-2 rounded-xl border border-dashed border-line-strong bg-card active:bg-grey-50"
           >
             <Plus size={18} color={C.ink2} strokeWidth={2} />
@@ -268,6 +390,10 @@ export default function OwnershipScreen() {
             I confirm the shareholding split above is complete and every individual holding more than {UBO_THRESHOLD}% has
             been disclosed as a beneficial owner.
           </CheckRow>
+          <CheckRow checked={confirmPep} onToggle={() => setConfirmPep((v) => !v)}>
+            I confirm that no shareholder or beneficial owner listed above is a Politically Exposed Person (PEP), or a
+            family member or close associate of a PEP.
+          </CheckRow>
         </View>
       </Body>
 
@@ -282,6 +408,8 @@ export default function OwnershipScreen() {
       >
         <PrimaryCTA label="Continue to signatory KYC" disabled={!complete} onPress={() => go('/director-kyc')} />
       </BottomBar>
+
+      {showAdd ? <AddShareholderModal left={left} onAdd={addOwner} onClose={() => setShowAdd(false)} /> : null}
     </View>
   );
 }

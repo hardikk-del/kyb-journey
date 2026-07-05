@@ -48,11 +48,7 @@ export default function IdentityScreen() {
                   BNZPM2501F
                 </Txt>
               </View>
-              {panUpload.status === 'verified' ? (
-                <StatusBadge kind="verified" />
-              ) : panUpload.status === 'verifying' ? (
-                <StatusBadge kind="verifying" />
-              ) : null}
+              {panUpload.status === 'verified' ? <StatusBadge kind="verified" /> : null}
             </View>
             {panUpload.status === 'verified' ? (
               <>

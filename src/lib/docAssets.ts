@@ -1,6 +1,8 @@
 // Real document images. Keys are matched loosely against the document label
 // (case-insensitive `includes`, first match wins). Every identity and business
 // proof type resolves to a real scan; unmatched labels fall back to the faux doc.
+import { Image } from 'react-native';
+
 const BASE =
   'https://d1kwhi236ua7t6.cloudfront.net/6142cad6-1cb6-4299-bba0-8a52f16313fa/projects/d4245685-58c8-4fa3-97b0-00b0205930ba/attachments';
 
@@ -12,7 +14,8 @@ export const SELFIE = `${BASE}/image%20%281%29.png`;
 
 // Externally-hosted samples for the company (ltd) journey.
 const AADHAAR = 'https://4.imimg.com/data4/VA/JI/MY-8550553/aadhaar-card-250x250.jpg';
-const COI = 'https://registrationsindia.com/media/2016/06/Certificate-of-Incorporation-sample-Image.png';
+// Bundled local scan at assets/images/coi.webp.
+const COI = Image.resolveAssetSource(require('../../assets/images/coi.webp')).uri;
 const RESOLUTION = 'https://imgv2-1-f.scribdassets.com/img/document/217009483/original/3cfc21cef5/1?v=1';
 const ADDRESS_PROOF = 'https://static.dexform.com/media/docs/9575/proof-of-address-letter-template_1.png';
 const SIGNATORY_ID = 'https://imgv2-2-f.scribdassets.com/img/document/355794227/original/6adf95ff7c/1?v=1';

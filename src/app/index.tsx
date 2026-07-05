@@ -32,7 +32,9 @@ export default function StartScreen() {
   const onContinue = () => {
     flow.reset();
     flow.set({ entity: selected, members: membersFor(selected) });
-    go(selected === 'prop' ? '/checklist' : '/entity-details');
+    // Proprietorship and companies open with the document checklist; other
+    // entities go straight to entity details.
+    go(selected === 'prop' || selected === 'ltd' ? '/checklist' : '/entity-details');
   };
 
   return (

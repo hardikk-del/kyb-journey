@@ -49,7 +49,6 @@ export default function EntityDetailsScreen() {
   const isCorporate = isCorporateEntity(entity);
   const meta = ENTITY_META[entity];
   const members = meta?.members ?? membersFor(entity);
-  const memberNoun = meta?.memberNoun ?? 'Designated Partners';
 
   const [pan, setPan] = useState('');
   const [state, setState] = useState('');
@@ -123,7 +122,7 @@ export default function EntityDetailsScreen() {
           <View style={shadowXs} className="items-center justify-center gap-3 rounded-xl border border-line bg-card py-9">
             <ActivityIndicator size="large" color={C.brand} />
             <Txt weight={600} className="text-[14px] text-ink">
-              {isCorporate ? `Fetching ${memberNoun} from MCA Registry...` : 'Verifying PAN'}
+              {isCorporate ? 'Fetching details from MCA...' : 'Verifying PAN'}
             </Txt>
           </View>
         ) : null}

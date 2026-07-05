@@ -15,7 +15,6 @@ export type Phase =
   | 'signatory'
   | 'documents'
   | 'proof'
-  | 'shareholding'
   | 'declaration'
   | 'business'
   | 'site'
@@ -28,8 +27,10 @@ const SEQ: Record<'prop' | 'llp' | 'ltd', Phase[]> = {
   prop: ['entity', 'documents', 'proof', 'declaration', 'business', 'site', 'account', 'signature', 'aof'],
   // LLP — partner contacts + tracking inserted after entity details.
   llp: ['entity', 'partners', 'documents', 'proof', 'declaration', 'business', 'site', 'account', 'signature', 'aof'],
-  // Company — entity & ownership confirmation + signatory KYC + shareholding/UBO inserted.
-  ltd: ['entity', 'ownership', 'signatory', 'documents', 'proof', 'shareholding', 'declaration', 'business', 'site', 'account', 'signature', 'aof'],
+  // Company — document checklist up front, then entity & ownership confirmation,
+  // signatory KYC, business details, and business proof (split across three doc
+  // screens, all under the 'proof' phase).
+  ltd: ['documents', 'entity', 'ownership', 'signatory', 'business', 'proof', 'declaration', 'site', 'account', 'signature', 'aof'],
 };
 
 function seqFor(entity: EntityId): Phase[] {

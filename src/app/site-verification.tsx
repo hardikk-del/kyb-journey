@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, TextInput, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Camera, MapPin, RotateCcw, Check, Search, Plus, X, ShieldCheck, Trash2 } from 'lucide-react-native';
 
 import { Body, BottomBar, PrimaryCTA, ScreenHeader } from '@/components/layout';
@@ -26,6 +27,14 @@ const CATALOG: Mcc[] = [
   { code: '5111', title: 'Stationery & Office Supplies' },
   { code: '2741', title: 'Miscellaneous Publishing & Printing' },
 ];
+
+// Real captured samples for a couple of the site photos; the rest use the
+// generic geotagged placeholder.
+const PHOTO_IMAGES: Record<string, number> = {
+  nameboard: require('../../assets/images/business-board.webp'),
+  entrance: require('../../assets/images/business-board.webp'),
+  inventory: require('../../assets/images/inventory.jpeg'),
+};
 
 const PHOTOS = [
   { key: 'nameboard', title: 'Business nameboard', note: 'Signage with the entity name visible', required: true },
@@ -58,7 +67,7 @@ function Toggle<T extends string>({ value, options, onChange }: { value: T | nul
   );
 }
 
-function PhotoTile({ title, note, required, status, onCapture }: { title: string; note: string; required: boolean; status: PhotoStatus; onCapture: () => void }) {
+function PhotoTile({ title, note, required, status, photo, onCapture }: { title: string; note: string; required: boolean; status: PhotoStatus; photo?: number; onCapture: () => void }) {
   return (
     <View style={shadowXs} className="rounded-xl border border-line bg-card p-3">
       <View className="mb-2.5 flex-row items-start gap-2">
@@ -99,7 +108,11 @@ function PhotoTile({ title, note, required, status, onCapture }: { title: string
       ) : (
         <View>
           <View className="h-[120px] items-center justify-center overflow-hidden rounded-lg bg-[#2b3646]">
-            <Camera size={28} color="rgba(255,255,255,0.4)" strokeWidth={1.5} />
+            {photo ? (
+              <Image source={photo} style={{ position: 'absolute', width: '100%', height: '100%' }} contentFit="cover" />
+            ) : (
+              <Camera size={28} color="rgba(255,255,255,0.4)" strokeWidth={1.5} />
+            )}
             <View className="absolute inset-x-0 bottom-0 flex-row items-center gap-1.5 bg-black/55 px-2.5 py-1.5">
               <MapPin size={14} color="#fff" strokeWidth={2} />
               <Txt weight={500} className="text-[11px] text-white/90">
@@ -127,6 +140,8 @@ export default function SiteVerificationScreen() {
   const [selected, setSelected] = useState<Mcc[]>([RECOMMENDED]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const scrollRef = useRef<ScrollView>(null);
+  const didScrollToResult = useRef(false);
 
   const capture = (key: string) => {
     setPhotos((p) => ({ ...p, [key]: 'capturing' }));
@@ -137,6 +152,7 @@ export default function SiteVerificationScreen() {
   const requiredDone = photosDone && sameAddress !== null && occupancy !== null;
 
   const initiate = () => {
+    didScrollToResult.current = false;
     setVerify('verifying');
     setTimeout(() => setVerify('done'), 1600);
   };
@@ -157,7 +173,9 @@ export default function SiteVerificationScreen() {
     <View className="flex-1 bg-page">
       <ScreenHeader {...useStepHeader('site')} title="Site verification & MCC" />
 
-      <Body className="gap-7">
+      <Body ref={scrollRef} className="gap-7">
+        {verify !== 'done' ? (
+          <>
         <View className="gap-4">
           <Eyebrow>Premises</Eyebrow>
           <View className="gap-2">
@@ -180,13 +198,23 @@ export default function SiteVerificationScreen() {
           <Eyebrow>Site verification photos</Eyebrow>
           <View className="gap-3">
             {PHOTOS.map((p) => (
-              <PhotoTile key={p.key} title={p.title} note={p.note} required={p.required} status={photos[p.key]} onCapture={() => capture(p.key)} />
+              <PhotoTile key={p.key} title={p.title} note={p.note} required={p.required} status={photos[p.key]} photo={PHOTO_IMAGES[p.key]} onCapture={() => capture(p.key)} />
             ))}
           </View>
         </View>
+          </>
+        ) : null}
 
         {verify === 'done' ? (
-          <View className="gap-5">
+          <View
+            className="gap-5"
+            onLayout={(e) => {
+              if (didScrollToResult.current) return;
+              didScrollToResult.current = true;
+              const y = Math.max(0, e.nativeEvent.layout.y - 12);
+              requestAnimationFrame(() => scrollRef.current?.scrollTo({ y, animated: true }));
+            }}
+          >
             <View style={shadowXs} className="overflow-hidden rounded-xl border border-green-300 bg-card">
               <View className="flex-row items-center gap-2.5 border-b border-green-300 bg-green-50 px-4 py-3">
                 <ShieldCheck size={20} color={C.posFg} strokeWidth={2} />
@@ -196,17 +224,34 @@ export default function SiteVerificationScreen() {
               </View>
               <View className="gap-3 px-4 py-3">
                 <View className="gap-0.5">
-                  <Txt weight={500} className="text-[12px] text-ink-3">
-                    Extracted address (from documents)
-                  </Txt>
+                  <View className="flex-row items-center gap-1.5">
+                    <Txt weight={500} className="text-[12px] text-ink-3">
+                      Extracted address (from MCA)
+                    </Txt>
+                    <Check size={13} color={C.posFg} strokeWidth={2.5} />
+                  </View>
                   <Txt weight={600} className="text-[13px] leading-[18px] text-ink">
                     Unit 4, Lotus Industrial Estate, Andheri East, Mumbai 400059
                   </Txt>
                 </View>
                 <View className="gap-0.5">
-                  <Txt weight={500} className="text-[12px] text-ink-3">
-                    Live tagged location (site photos)
+                  <View className="flex-row items-center gap-1.5">
+                    <Txt weight={500} className="text-[12px] text-ink-3">
+                      Extracted address (from documents)
+                    </Txt>
+                    <Check size={13} color={C.posFg} strokeWidth={2.5} />
+                  </View>
+                  <Txt weight={600} className="text-[13px] leading-[18px] text-ink">
+                    Unit 4, Lotus Industrial Estate, Andheri East, Mumbai 400059
                   </Txt>
+                </View>
+                <View className="gap-0.5">
+                  <View className="flex-row items-center gap-1.5">
+                    <Txt weight={500} className="text-[12px] text-ink-3">
+                      Live tagged location (site photos)
+                    </Txt>
+                    <Check size={13} color={C.posFg} strokeWidth={2.5} />
+                  </View>
                   <Txt weight={600} className="text-[13px] leading-[18px] text-ink">
                     19.1136° N, 72.8697° E · Andheri East, Mumbai
                   </Txt>

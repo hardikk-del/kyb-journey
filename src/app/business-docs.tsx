@@ -95,7 +95,7 @@ function DocSlot({
             {subtext ? <Txt className="mt-0.5 text-[12px] text-ink-3">{subtext}</Txt> : null}
           </View>
         </View>
-        {verified ? <StatusBadge kind="verified" /> : slot.status === 'verifying' ? <StatusBadge kind="verifying" /> : null}
+        {verified ? <StatusBadge kind="verified" /> : null}
       </View>
 
       <Dropdown value={type} options={options} onChange={onType} disabled={locked || isFixed} disabledOptions={disabledOptions} />
@@ -206,7 +206,7 @@ export default function BusinessDocsScreen() {
         <PrimaryCTA
           label={ready ? 'Verify & continue' : `Add ${totalDocs - added} more to continue`}
           disabled={!ready}
-          onPress={() => go(entity === 'ltd' ? '/shareholding' : '/self-declaration')}
+          onPress={() => go('/self-declaration')}
         />
       </BottomBar>
 

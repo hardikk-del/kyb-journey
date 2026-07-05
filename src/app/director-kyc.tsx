@@ -49,7 +49,7 @@ export default function SignatoryKycScreen() {
 
   const proceed = () => {
     flow.set({ entity, members: allMembers, signatory: authorised });
-    go('/checklist');
+    go('/business-details');
   };
 
   return (
@@ -75,7 +75,7 @@ export default function SignatoryKycScreen() {
           ) : undefined
         }
       >
-        <PrimaryCTA label="Continue to documents" disabled={!allDone} onPress={proceed} />
+        <PrimaryCTA label="Continue to business details" disabled={!allDone} onPress={proceed} />
       </BottomBar>
     </View>
   );

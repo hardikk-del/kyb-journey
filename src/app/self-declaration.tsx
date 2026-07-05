@@ -5,6 +5,7 @@ import { Plus, Trash2, Check, Info } from 'lucide-react-native';
 import { Body, BottomBar, PrimaryCTA, ScreenHeader } from '@/components/layout';
 import { Txt } from '@/components/Txt';
 import { Checkbox, Dropdown, RadioCard, SectionCard } from '@/components/kyb/controls';
+import { useFlow } from '@/store/flow';
 import { useStepHeader } from '@/lib/steps';
 import { go } from '@/lib/nav';
 import { C } from '@/lib/tokens';
@@ -95,6 +96,9 @@ function CheckRow({ label, checked, onToggle }: { label: string; checked: boolea
 }
 
 export default function SelfDeclarationScreen() {
+  // Companies capture business details earlier (before business proof), so after
+  // the declaration they go straight to site verification.
+  const isLtd = useFlow((s) => s.entity) === 'ltd';
   const [indiaOnly, setIndiaOnly] = useState<YN>('yes');
   const [usResident, setUsResident] = useState<YN | null>(null);
   const [usPerson, setUsPerson] = useState<YN | null>(null);
@@ -301,7 +305,7 @@ export default function SelfDeclarationScreen() {
           label="Run verification"
           trailing={false}
           disabled={!authorised || !bureauConsent || !fatcaComplete}
-          onPress={() => go('/business-details')}
+          onPress={() => go(isLtd ? '/site-verification' : '/business-details')}
         />
       </BottomBar>
     </View>

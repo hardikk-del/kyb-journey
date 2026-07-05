@@ -46,11 +46,14 @@ const CHECKLISTS: Record<string, Doc[]> = {
   ],
   ltd: [
     { title: 'Business PAN', sub: 'PAN of the company' },
-    { title: 'Signatory KYC', sub: 'Directors list + authorised signatory ID' },
+    { title: 'Entity & ownership details', sub: 'Beneficial ownership details and holding structure' },
+    { title: 'Signatory KYC', sub: 'KYC of all authorised signatories' },
+    { title: 'Business details', sub: 'Turnover, nature of business & source of funds' },
     { title: 'Incorporation certificate', sub: 'Issued by the Registrar of Companies' },
     { title: 'Board resolution', sub: 'Directors & shareholding, on letterhead' },
     { title: 'Business address proof', sub: 'GST, trade licence or utility bill (< 3 months)' },
-    { title: 'Applicant signature', sub: 'Applicant or authorised signatory' },
+    { title: 'Site verification', sub: 'Business premises images & MCC check' },
+    { title: 'Applicant signature', sub: 'Applicant or authorised signatory signature' },
   ],
 };
 
@@ -104,27 +107,36 @@ export default function ChecklistScreen() {
   const entity = flow.entity;
   const steps = CHECKLISTS[entity] ?? CHECKLISTS.prop;
 
+  // Companies see a plain checklist up front, then go on to capture the Business
+  // PAN in entity details — no collect-method / send-link choice here.
+  const isLtd = entity === 'ltd';
+
   const [method, setMethod] = useState<'upload' | 'link'>('link');
   const [channel, setChannel] = useState<'sms' | 'whatsapp'>('whatsapp');
   const [mobile, setMobile] = useState('76065 12345');
   const isLink = method === 'link';
 
   const onContinue = () => {
+    if (isLtd) {
+      flow.set({ method: 'upload' });
+      go('/entity-details');
+      return;
+    }
     flow.set({ method });
     if (isLink) {
       go('/link-sent');
       return;
     }
-    if (entity === 'llp' || entity === 'ltd') go('/business-docs');
+    if (entity === 'llp') go('/business-docs');
     else go('/identity');
   };
 
   return (
     <View className="flex-1 bg-page">
-      <ScreenHeader {...useStepHeader('documents')} title="Document checklist" />
+      <ScreenHeader {...useStepHeader('documents')} title="Checklist" />
 
       <Body className="gap-7">
-        <Txt className="text-[15px] text-ink-3">Collect these documents to open the current account.</Txt>
+        <Txt className="text-[15px] text-ink-3">Collect these details to open the current account.</Txt>
 
         <View>
           {steps.map((s, i) => (
@@ -132,6 +144,7 @@ export default function ChecklistScreen() {
           ))}
         </View>
 
+        {isLtd ? null : (
         <View className="gap-3">
           <Eyebrow>How to collect documents</Eyebrow>
           <View className="flex-row gap-3">
@@ -139,8 +152,9 @@ export default function ChecklistScreen() {
             <MethodBtn label="Send link to customer" active={method === 'link'} onPress={() => setMethod('link')} />
           </View>
         </View>
+        )}
 
-        {isLink ? (
+        {isLtd ? null : isLink ? (
           <View className="gap-4">
             <Txt className="-mt-1 text-[15px] text-ink-3">
               Choose a channel where the customer will receive the form link.
@@ -189,7 +203,7 @@ export default function ChecklistScreen() {
       </Body>
 
       <BottomBar>
-        <PrimaryCTA label={isLink ? 'Send document link' : 'Start uploading'} onPress={onContinue} />
+        <PrimaryCTA label={isLtd ? 'Continue' : isLink ? 'Send document link' : 'Start uploading'} onPress={onContinue} />
       </BottomBar>
     </View>
   );
