@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* color channels (space-separated RGB so Tailwind alpha modifiers work) */
+  --c-background: 242 244 247;
+  --c-surface-card: 255 255 255;
+  --c-surface-sunken: 241 243 246;
+  --c-surface-hover: 247 248 250;
+  --c-surface-selected: 234 241 254;
+  --c-fg-primary: 15 23 42;
+  --c-fg-secondary: 55 65 81;
+  --c-fg-tertiary: 107 114 128;
+  --c-line: 226 229 234;
+  --c-line-subtle: 236 238 242;
+  --c-line-strong: 199 204 212;
+  --c-brand: 37 99 235;
+  --c-brand-subtle: 232 239 252;
+  --c-pos: 22 163 74;
+  --c-pos-bg: 231 246 236;
+  --c-pos-fg: 21 128 61;
+  --c-pos-border: 167 224 184;
+  --c-neg: 220 38 38;
+
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: rgb(var(--c-background));
+  color: rgb(var(--c-fg-primary));
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+* { box-sizing: border-box; }
+input, button { font-family: inherit; }
+input:focus { outline: none; }
+
+@keyframes figrFade { from { opacity: 0; } to { opacity: 1; } }
+.anim-fade { animation: figrFade 0.18s ease-out; }
