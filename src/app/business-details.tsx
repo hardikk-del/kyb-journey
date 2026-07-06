@@ -94,10 +94,10 @@ export default function BusinessDetailsScreen() {
 
       <BottomBar>
         <PrimaryCTA
-          label={isLtd ? 'Continue to documents' : 'Continue to verification'}
+          label={isLtd ? 'Continue to banking' : 'Continue to verification'}
           trailing={false}
           disabled={!complete}
-          onPress={() => go(isLtd ? '/business-doc-incorporation' : '/site-verification')}
+          onPress={() => go(isLtd ? '/existing-bank-accounts' : '/site-verification')}
         />
       </BottomBar>
     </View>
