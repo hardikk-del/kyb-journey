@@ -88,7 +88,7 @@ export function BusinessReview({
         </View>
         <View className="flex-1">
           <Txt weight={700} className="text-[14.5px] text-ink">
-            AI business review
+            Internal verification check
           </Txt>
           <Txt className="text-[12px] text-ink-3">Final cross-document check</Txt>
         </View>

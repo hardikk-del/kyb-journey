@@ -27,7 +27,7 @@ function AiAnalysing({ status }: { status: 'uploading' | 'verifying' }) {
         {uploading ? <ActivityIndicator color={C.brand} /> : <Sparkles size={20} color={C.brand} strokeWidth={2} />}
       </View>
       <Txt weight={600} className="text-center text-[14px] text-ink-2">
-        {uploading ? 'Uploading certificate…' : 'Reading the certificate with AI…'}
+        {uploading ? 'Uploading certificate…' : 'Reading the certificate…'}
       </Txt>
       {!uploading ? (
         <Txt className="text-center text-[12px] text-ink-3">Extracting entity name, CIN and registered address</Txt>

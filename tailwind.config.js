@@ -5,6 +5,10 @@
 module.exports = {
   content: ['./src/**/*.{js,jsx,ts,tsx}'],
   presets: [require('nativewind/preset')],
+  // App is light-only (userInterfaceStyle: "light"). The default darkMode
+  // 'media' makes react-native-css-interop's web MutationObserver throw when it
+  // tries to set the color scheme; 'class' silences that without adding a theme.
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {

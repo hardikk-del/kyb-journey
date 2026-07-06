@@ -295,7 +295,7 @@ export default function SiteVerificationScreen() {
                   Merchant category (MCC)
                   <Req />
                 </Eyebrow>
-                <Txt className="text-[13px] text-ink-2">AI has pre-filled the recommended MCC. Add or change it if needed.</Txt>
+                <Txt className="text-[13px] text-ink-2">The recommended MCC is pre-filled. Add or change it if needed.</Txt>
               </View>
 
               {selected.map((m) => {
@@ -311,7 +311,7 @@ export default function SiteVerificationScreen() {
                         <View className="flex-row items-center gap-1.5">
                           <Sparkles size={12} color={C.brand} strokeWidth={2.5} />
                           <Txt weight={600} className="text-[10.5px] uppercase tracking-[0.5px] text-brand">
-                            Recommended by AI
+                            Recommended
                           </Txt>
                         </View>
                       ) : null}

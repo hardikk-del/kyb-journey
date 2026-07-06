@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
-import { Image as RNImage } from 'react-native';
+import { Asset } from 'expo-asset';
 import { Eye, FileText, MapPin, Sparkles } from 'lucide-react-native';
 
 import { Body, BottomBar, PrimaryCTA, ScreenHeader } from '@/components/layout';
@@ -20,7 +20,7 @@ import { cn } from '@/lib/cn';
 import { useFlow, type Person } from '@/store/flow';
 
 const PAGE_1 = require('../../assets/images/board-resolution-p1.png');
-const RESOLUTION_PDF = RNImage.resolveAssetSource(require('../../assets/images/Board_Resolution_FILLED.pdf'))?.uri ?? '';
+const RESOLUTION_PDF = Asset.fromModule(require('../../assets/images/Board_Resolution_FILLED.pdf')).uri ?? '';
 
 type Mode = 'singly' | 'jointly' | 'severally' | 'br';
 const MODES: { value: Mode; label: string }[] = [

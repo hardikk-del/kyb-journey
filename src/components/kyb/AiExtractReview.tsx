@@ -174,7 +174,7 @@ export function AiExtractReview({
         </View>
         <View className="flex-1">
           <Txt weight={700} className="text-[14.5px] text-ink">
-            AI document review
+            Document review
           </Txt>
           <Txt className="text-[12px] text-ink-3">{subtitle}</Txt>
         </View>
