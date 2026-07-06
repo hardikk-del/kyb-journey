@@ -60,8 +60,8 @@ export default function EntityDetailsScreen() {
   const locked = stage !== 'input';
   const stateCode = STATES.find((s) => s.name === state)?.code ?? '29';
   const gstin = `${stateCode}${pan}1ZO`;
-  const cin = 'U62013KA2023PTC181035';
-  const verifiedName = meta?.legalName ?? 'Finramp Technologies Pvt Ltd';
+  const cin = meta?.cin ?? 'U23941GJ2016PTC181035';
+  const verifiedName = meta?.legalName ?? 'Shri Shakti Properties and BMS';
   const verified = stage === 'verified';
 
   const runVerify = () => {

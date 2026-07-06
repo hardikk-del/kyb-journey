@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
-import { ChevronDown, Check } from 'lucide-react-native';
+import { ChevronDown, Check, Users, X } from 'lucide-react-native';
 import { Txt } from '../Txt';
 import { cn } from '@/lib/cn';
 import { C, shadowXs } from '@/lib/tokens';
+import type { Person } from '@/store/flow';
 
 /* ---------------- required marker + field label ---------------- */
 
@@ -132,6 +133,154 @@ export function Dropdown({
                   </Pressable>
                 );
               })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
+/* ---------------- money input (₹) ---------------- */
+
+const NUM_FONT = { fontFamily: 'DMSans_600SemiBold' as const };
+
+export function MoneyInput({
+  value,
+  onChange,
+  placeholder = 'No limit',
+  height = 44,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  height?: number;
+}) {
+  return (
+    <View
+      style={{ height }}
+      className={cn('flex-row items-center rounded-lg border px-3', value ? 'border-blue-500 bg-blue-50' : 'border-line-strong bg-card')}
+    >
+      <Txt weight={700} className="mr-1.5 text-[15px] text-ink-3">
+        ₹
+      </Txt>
+      <TextInput
+        value={value}
+        onChangeText={(t) => onChange(t.replace(/[^0-9]/g, ''))}
+        keyboardType="numeric"
+        placeholder={placeholder}
+        placeholderTextColor="rgb(141,141,141)"
+        style={NUM_FONT}
+        className="flex-1 text-[15px] text-ink"
+      />
+    </View>
+  );
+}
+
+/* ---------------- people multi-select ---------------- */
+
+export function PeopleSelect({
+  people,
+  selected,
+  onChange,
+  placeholder = 'Select people',
+  single,
+}: {
+  people: Person[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+  placeholder?: string;
+  /** Single-select mode (e.g. approver) — picking a person closes the sheet. */
+  single?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const chosen = people.filter((p) => selected.includes(p.id));
+
+  const toggle = (id: string) => {
+    if (single) {
+      onChange([id]);
+      setOpen(false);
+      return;
+    }
+    onChange(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]);
+  };
+
+  return (
+    <>
+      <Pressable
+        onPress={() => setOpen(true)}
+        className="min-h-[48px] flex-row items-center justify-between gap-2 rounded-lg border border-line-strong bg-card px-3 py-2"
+      >
+        {chosen.length ? (
+          <View className="flex-1 flex-row flex-wrap gap-1.5">
+            {chosen.map((p) => (
+              <View key={p.id} className="flex-row items-center gap-1.5 rounded-full bg-blue-50 py-1 pl-2.5 pr-1.5">
+                <Txt weight={600} className="text-[12.5px] text-blue-700">
+                  {p.name}
+                </Txt>
+                <Pressable onPress={() => toggle(p.id)} hitSlop={6} className="h-4 w-4 items-center justify-center rounded-full bg-blue-100">
+                  <X size={11} color={C.brand} strokeWidth={2.5} />
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View className="flex-1 flex-row items-center gap-2">
+            <Users size={16} color={C.ink3} strokeWidth={2} />
+            <Txt weight={500} className="text-[14px] text-ink-3">
+              {placeholder}
+            </Txt>
+          </View>
+        )}
+        <ChevronDown size={16} color={C.ink3} strokeWidth={2} />
+      </Pressable>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable onPress={() => setOpen(false)} className="flex-1 justify-end bg-black/40">
+          <Pressable className="max-h-[72%] rounded-t-2xl bg-card pb-8 pt-2">
+            <View className="mb-1 items-center py-2">
+              <View className="h-1 w-10 rounded-full bg-line-strong" />
+            </View>
+            <View className="flex-row items-center justify-between px-5 pb-2">
+              <Txt weight={700} className="text-[15px] text-ink">
+                {single ? 'Select a person' : 'Select people'}
+              </Txt>
+              {!single ? (
+                <Pressable onPress={() => setOpen(false)} hitSlop={8}>
+                  <Txt weight={700} className="text-[14px] text-brand">
+                    Done
+                  </Txt>
+                </Pressable>
+              ) : null}
+            </View>
+            <ScrollView>
+              {people.map((p) => {
+                const on = selected.includes(p.id);
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => toggle(p.id)}
+                    className="flex-row items-center gap-3 px-5 py-3 active:bg-grey-50"
+                  >
+                    <View className="flex-1">
+                      <Txt weight={600} className="text-[15px] text-ink">
+                        {p.name}
+                      </Txt>
+                      <Txt className="text-[12.5px] text-ink-3">{p.designation}</Txt>
+                    </View>
+                    {single ? (
+                      on ? <Check size={18} color={C.brand} strokeWidth={2.5} /> : null
+                    ) : (
+                      <Checkbox checked={on} />
+                    )}
+                  </Pressable>
+                );
+              })}
+              {people.length === 0 ? (
+                <Txt className="px-5 py-6 text-center text-[13px] text-ink-3">
+                  No people found. Add them on the Entity & ownership screen first.
+                </Txt>
+              ) : null}
             </ScrollView>
           </Pressable>
         </Pressable>

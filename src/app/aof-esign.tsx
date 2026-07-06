@@ -220,7 +220,7 @@ function AofPreview({ entity, authorisedSignatory, partners, onClose }: { entity
               <Row label="Legal name" value={meta?.legalName ?? 'Kirana Traders'} />
               <Row label="Constitution" value={meta?.constitution ?? 'Proprietorship'} />
               <Row label="PAN" value={meta?.pan ?? 'BNZPM2501F'} />
-              <Row label="Registered address" value="Unit 4, Lotus Industrial Estate, Andheri East, Mumbai 400059" />
+              <Row label="Registered address" value={meta?.registeredOffice ?? 'Unit 4, Lotus Industrial Estate, Andheri East, Mumbai 400059'} />
             </Block>
 
             {isCorporate ? (
@@ -241,7 +241,7 @@ function AofPreview({ entity, authorisedSignatory, partners, onClose }: { entity
             <Block title="Account">
               <Row label="Product" value="Digital First Account" />
               <Row label="Minimum balance" value="₹35,000" />
-              <Row label="MCC" value="5131 · Wholesale Textiles" />
+              <Row label="MCC" value="5039 · Construction Materials" />
             </Block>
 
             <Block title="Nominee">

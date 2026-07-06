@@ -17,7 +17,8 @@ const AADHAAR = 'https://4.imimg.com/data4/VA/JI/MY-8550553/aadhaar-card-250x250
 // Bundled local scan at assets/images/coi.webp.
 const COI = Image.resolveAssetSource(require('../../assets/images/coi.webp')).uri;
 const RESOLUTION = 'https://imgv2-1-f.scribdassets.com/img/document/217009483/original/3cfc21cef5/1?v=1';
-const ADDRESS_PROOF = 'https://static.dexform.com/media/docs/9575/proof-of-address-letter-template_1.png';
+// Bundled local scan at assets/images/factory-license.webp — used for the business address proof.
+const ADDRESS_PROOF = Image.resolveAssetSource(require('../../assets/images/factory-license.webp')).uri;
 const SIGNATORY_ID = 'https://imgv2-2-f.scribdassets.com/img/document/355794227/original/6adf95ff7c/1?v=1';
 
 // Order matters — earlier keys win when a label contains several.

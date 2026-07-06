@@ -51,22 +51,28 @@ export function ScreenHeader({ title, stepLabel, progress = 0, showBack = true, 
   );
 }
 
-export const Body = forwardRef<ScrollView, { children: React.ReactNode; className?: string }>(
-  ({ children, className }, ref) => {
-    return (
-      <ScrollView
-        ref={ref}
-        className="flex-1 bg-page"
-        contentContainerClassName={cn('gap-6 px-5 pb-6 pt-6', className)}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
-      >
-        {children}
-      </ScrollView>
-    );
-  },
-);
+export const Body = forwardRef<
+  ScrollView,
+  {
+    children: React.ReactNode;
+    className?: string;
+    onContentSizeChange?: (w: number, h: number) => void;
+  }
+>(({ children, className, onContentSizeChange }, ref) => {
+  return (
+    <ScrollView
+      ref={ref}
+      className="flex-1 bg-page"
+      contentContainerClassName={cn('gap-6 px-5 pb-6 pt-6', className)}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+      onContentSizeChange={onContentSizeChange}
+    >
+      {children}
+    </ScrollView>
+  );
+});
 Body.displayName = 'Body';
 
 export function BottomBar({ children, hint }: { children: React.ReactNode; hint?: React.ReactNode }) {

@@ -1,18 +1,19 @@
+import { Calendar, MapPin, Plus, Trash2, User, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Calendar, MapPin, Plus, Trash2, User, X } from 'lucide-react-native';
 
-import { Body, BottomBar, PrimaryCTA, ScreenHeader } from '@/components/layout';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { Txt } from '@/components/Txt';
 import { Checkbox } from '@/components/kyb/controls';
-import { ENTITY_META, membersInfoFor } from '@/lib/entities';
-import { useStepHeader } from '@/lib/steps';
-import { go } from '@/lib/nav';
-import { C, shadowXs } from '@/lib/tokens';
+import { DatePicker } from '@/components/kyb/DatePicker';
+import { Body, BottomBar, PrimaryCTA, ScreenHeader } from '@/components/layout';
+import { Txt } from '@/components/Txt';
 import { cn } from '@/lib/cn';
+import { ENTITY_META, membersInfoFor } from '@/lib/entities';
+import { go } from '@/lib/nav';
+import { useStepHeader } from '@/lib/steps';
+import { C, shadowXs } from '@/lib/tokens';
 import { useFlow } from '@/store/flow';
 
 // Individuals holding more than this are Ultimate Beneficial Owners.
@@ -222,7 +223,12 @@ function AddShareholderModal({ left, onAdd, onClose }: { left: number; onAdd: (o
           >
             <View className="gap-3.5">
               <Input label="Full name" required value={name} onChangeText={setName} placeholder="As per PAN / ID proof" autoFocus />
-              <Input label="Date of birth" value={dob} onChangeText={setDob} placeholder="DD MMM YYYY" />
+              <View className="gap-1.5">
+                <Txt weight={600} className="text-[13px] text-ink">
+                  Date of birth
+                </Txt>
+                <DatePicker value={dob} onChange={setDob} maximumDate={new Date()} height={48} />
+              </View>
               <Input label="Residential address" value={address} onChangeText={setAddress} placeholder="Flat, street, city, PIN" />
 
               <View className="gap-1.5">
@@ -280,7 +286,7 @@ export default function OwnershipScreen() {
   const entity = flow.entity;
   const meta = ENTITY_META[entity];
 
-  const entityName = meta?.legalName ?? 'Finramp Technologies Pvt Ltd';
+  const entityName = meta?.legalName ?? 'Shri Shakti Properties and BMS';
   const regAddress = meta?.registeredOffice ?? 'Unit 4, Lotus Industrial Estate, Andheri East, Mumbai 400059';
   const doi = meta?.dateOfIncorporation ?? '14 Mar 2016';
 
@@ -406,7 +412,22 @@ export default function OwnershipScreen() {
           ) : undefined
         }
       >
-        <PrimaryCTA label="Continue to signatory KYC" disabled={!complete} onPress={() => go('/director-kyc')} />
+        <PrimaryCTA
+          label="Continue to signatory KYC"
+          disabled={!complete}
+          onPress={() => {
+            // Carry the people entered here forward so the board resolution can be
+            // assembled from real selections — nobody new is typed downstream.
+            flow.set({
+              people: owners.map((o) => ({
+                id: o.id,
+                name: o.name,
+                designation: o.isDirector ? 'Director' : 'Authorised Signatory',
+              })),
+            });
+            go('/director-kyc');
+          }}
+        />
       </BottomBar>
 
       {showAdd ? <AddShareholderModal left={left} onAdd={addOwner} onClose={() => setShowAdd(false)} /> : null}

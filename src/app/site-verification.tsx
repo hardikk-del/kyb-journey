@@ -1,11 +1,14 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
-import { Camera, MapPin, RotateCcw, Check, Search, Plus, X, ShieldCheck, Trash2 } from 'lucide-react-native';
+import { Camera, MapPin, RotateCcw, Check, Search, Plus, X, ShieldCheck, Trash2, Sparkles } from 'lucide-react-native';
 
 import { Body, BottomBar, PrimaryCTA, ScreenHeader } from '@/components/layout';
 import { Txt } from '@/components/Txt';
 import { Eyebrow, Req } from '@/components/kyb/controls';
+import { BusinessReview, type ConsistencyRow } from '@/components/kyb/BusinessReview';
+import { ENTITY_META } from '@/lib/entities';
+import { useFlow } from '@/store/flow';
 import { useStepHeader } from '@/lib/steps';
 import { go } from '@/lib/nav';
 import { C, shadowXs } from '@/lib/tokens';
@@ -14,18 +17,18 @@ import { cn } from '@/lib/cn';
 type PhotoStatus = 'idle' | 'capturing' | 'done';
 type Mcc = { code: string; title: string };
 
-const RECOMMENDED: Mcc = { code: '5131', title: 'Wholesale of Piece Goods, Textiles & Notions' };
+const RECOMMENDED: Mcc = { code: '5039', title: 'Construction Materials (Not Elsewhere Classified)' };
 const SUGGESTIONS: Mcc[] = [
-  { code: '5651', title: 'Family Clothing Stores (Retail)' },
-  { code: '5949', title: 'Sewing, Needlework & Fabric Stores' },
+  { code: '5211', title: 'Building Materials & Lumber Stores' },
+  { code: '1771', title: 'Concrete Work Contractors' },
 ];
 const CATALOG: Mcc[] = [
   ...SUGGESTIONS,
-  { code: '5621', title: "Women's Ready-to-Wear Stores" },
-  { code: '5137', title: 'Uniforms & Commercial Clothing' },
+  { code: '5032', title: 'Brick, Stone & Related Building Materials' },
+  { code: '1740', title: 'Masonry, Stonework & Plastering' },
+  { code: '5085', title: 'Industrial Supplies (Not Elsewhere Classified)' },
+  { code: '1520', title: 'General Contractors, Residential & Commercial' },
   { code: '5099', title: 'Durable Goods, Miscellaneous' },
-  { code: '5111', title: 'Stationery & Office Supplies' },
-  { code: '2741', title: 'Miscellaneous Publishing & Printing' },
 ];
 
 // Real captured samples for a couple of the site photos; the rest use the
@@ -116,7 +119,7 @@ function PhotoTile({ title, note, required, status, photo, onCapture }: { title:
             <View className="absolute inset-x-0 bottom-0 flex-row items-center gap-1.5 bg-black/55 px-2.5 py-1.5">
               <MapPin size={14} color="#fff" strokeWidth={2} />
               <Txt weight={500} className="text-[11px] text-white/90">
-                19.1136° N, 72.8697° E · 20 Jun, 2:14 AM
+                22.8394° N, 69.7219° E · 20 Jun, 2:14 AM
               </Txt>
             </View>
           </View>
@@ -133,10 +136,13 @@ function PhotoTile({ title, note, required, status, photo, onCapture }: { title:
 }
 
 export default function SiteVerificationScreen() {
+  const flow = useFlow();
+  const meta = ENTITY_META[flow.entity];
   const [sameAddress, setSameAddress] = useState<'yes' | 'no' | null>(null);
   const [occupancy, setOccupancy] = useState<'rented' | 'owned' | null>(null);
   const [photos, setPhotos] = useState<Record<string, PhotoStatus>>({ nameboard: 'idle', entrance: 'idle', inventory: 'idle', owner: 'idle' });
   const [verify, setVerify] = useState<'idle' | 'verifying' | 'done'>('idle');
+  const [reviewDone, setReviewDone] = useState(false);
   const [selected, setSelected] = useState<Mcc[]>([RECOMMENDED]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -153,9 +159,20 @@ export default function SiteVerificationScreen() {
 
   const initiate = () => {
     didScrollToResult.current = false;
+    setReviewDone(false);
     setVerify('verifying');
     setTimeout(() => setVerify('done'), 1600);
   };
+
+  // The final AI review reconciles everything gathered so far.
+  const entityName = meta?.legalName ?? 'Shri Shakti Properties and BMS';
+  const address = meta?.registeredOffice ?? 'Survey No. 264, Village Navinal, Ta. Mundra, Dist. Kutch, Gujarat 370421';
+  const reviewRows: ConsistencyRow[] = [
+    { label: 'Business name', value: entityName, chip: 'Consistent' },
+    { label: 'Registered address', value: address, chip: 'Consistent' },
+    { label: 'Business activity', value: 'Cement manufacturing & wholesale', chip: 'Verified' },
+  ];
+  const reviewSources = ['MCA', 'COI', 'Factory licence', 'Business details', 'Nameboard', 'Site photos'];
 
   const isSelected = (code: string) => selected.some((m) => m.code === code);
   const add = (m: Mcc) => {
@@ -167,7 +184,7 @@ export default function SiteVerificationScreen() {
 
   const suggestionsToShow = SUGGESTIONS.filter((m) => !isSelected(m.code));
   const results = CATALOG.filter((m) => !isSelected(m.code) && (m.code.includes(query) || m.title.toLowerCase().includes(query.toLowerCase())));
-  const canContinue = verify === 'done' && selected.length > 0;
+  const canContinue = verify === 'done' && reviewDone && selected.length > 0;
 
   return (
     <View className="flex-1 bg-page">
@@ -215,6 +232,13 @@ export default function SiteVerificationScreen() {
               requestAnimationFrame(() => scrollRef.current?.scrollTo({ y, animated: true }));
             }}
           >
+            <BusinessReview
+              rows={reviewRows}
+              sources={reviewSources}
+              summary="Name, address and activity all reconcile across the documents, MCA and site photos. This reads as a genuine cement manufacturing and wholesale business."
+              onComplete={() => setReviewDone(true)}
+            />
+
             <View style={shadowXs} className="overflow-hidden rounded-xl border border-green-300 bg-card">
               <View className="flex-row items-center gap-2.5 border-b border-green-300 bg-green-50 px-4 py-3">
                 <ShieldCheck size={20} color={C.posFg} strokeWidth={2} />
@@ -231,7 +255,7 @@ export default function SiteVerificationScreen() {
                     <Check size={13} color={C.posFg} strokeWidth={2.5} />
                   </View>
                   <Txt weight={600} className="text-[13px] leading-[18px] text-ink">
-                    Unit 4, Lotus Industrial Estate, Andheri East, Mumbai 400059
+                    Survey No. 264, Village Navinal, Ta. Mundra, Dist. Kutch, Gujarat 370421
                   </Txt>
                 </View>
                 <View className="gap-0.5">
@@ -242,7 +266,7 @@ export default function SiteVerificationScreen() {
                     <Check size={13} color={C.posFg} strokeWidth={2.5} />
                   </View>
                   <Txt weight={600} className="text-[13px] leading-[18px] text-ink">
-                    Unit 4, Lotus Industrial Estate, Andheri East, Mumbai 400059
+                    Survey No. 264, Village Navinal, Ta. Mundra, Dist. Kutch, Gujarat 370421
                   </Txt>
                 </View>
                 <View className="gap-0.5">
@@ -253,7 +277,7 @@ export default function SiteVerificationScreen() {
                     <Check size={13} color={C.posFg} strokeWidth={2.5} />
                   </View>
                   <Txt weight={600} className="text-[13px] leading-[18px] text-ink">
-                    19.1136° N, 72.8697° E · Andheri East, Mumbai
+                    22.8394° N, 69.7219° E · Mundra, Kutch
                   </Txt>
                 </View>
                 <View className="flex-row items-center gap-1.5">
@@ -271,22 +295,42 @@ export default function SiteVerificationScreen() {
                   Merchant category (MCC)
                   <Req />
                 </Eyebrow>
-                <Txt className="text-[13px] text-ink-2">Select the MCC that best matches the business activity.</Txt>
+                <Txt className="text-[13px] text-ink-2">AI has pre-filled the recommended MCC. Add or change it if needed.</Txt>
               </View>
 
-              {selected.map((m) => (
-                <View key={m.code} style={shadowXs} className="flex-row items-start gap-3 rounded-xl border border-line bg-card p-4">
-                  <View className="flex-1">
-                    <Txt weight={700} className="text-[16px] tracking-[-0.2px] text-ink">
-                      {m.code}
-                    </Txt>
-                    <Txt className="mt-0.5 text-[13px] leading-[18px] text-ink-2">{m.title}</Txt>
+              {selected.map((m) => {
+                const recommended = m.code === RECOMMENDED.code;
+                return (
+                  <View
+                    key={m.code}
+                    style={shadowXs}
+                    className={cn('flex-row items-start gap-3 rounded-xl border bg-card p-4', recommended ? 'border-blue-200' : 'border-line')}
+                  >
+                    <View className="flex-1 gap-1">
+                      {recommended ? (
+                        <View className="flex-row items-center gap-1.5">
+                          <Sparkles size={12} color={C.brand} strokeWidth={2.5} />
+                          <Txt weight={600} className="text-[10.5px] uppercase tracking-[0.5px] text-brand">
+                            Recommended by AI
+                          </Txt>
+                        </View>
+                      ) : null}
+                      <Txt weight={700} className="text-[16px] tracking-[-0.2px] text-ink">
+                        {m.code}
+                      </Txt>
+                      <Txt className="text-[13px] leading-[18px] text-ink-2">{m.title}</Txt>
+                      {recommended ? (
+                        <Txt weight={500} className="text-[12px] leading-[16px] text-ink-3">
+                          Best fit for a cement manufacturing and wholesale business.
+                        </Txt>
+                      ) : null}
+                    </View>
+                    <Pressable onPress={() => remove(m.code)} className="h-8 w-8 items-center justify-center rounded-lg border border-line active:bg-grey-50">
+                      <Trash2 size={16} color={C.ink3} strokeWidth={2} />
+                    </Pressable>
                   </View>
-                  <Pressable onPress={() => remove(m.code)} className="h-8 w-8 items-center justify-center rounded-lg border border-line active:bg-grey-50">
-                    <Trash2 size={16} color={C.ink3} strokeWidth={2} />
-                  </Pressable>
-                </View>
-              ))}
+                );
+              })}
 
               {searchOpen ? (
                 <View style={shadowXs} className="gap-2 rounded-xl border border-line bg-card p-3">
@@ -354,7 +398,13 @@ export default function SiteVerificationScreen() {
         ) : null}
       </Body>
 
-      <BottomBar>
+      <BottomBar
+        hint={
+          verify === 'done' && !reviewDone ? (
+            <Txt className="text-[13px] text-ink-3">Reviewing business details…</Txt>
+          ) : undefined
+        }
+      >
         {verify === 'done' ? (
           <PrimaryCTA label="Confirm & continue" trailing={false} disabled={!canContinue} onPress={() => go('/account-setup')} />
         ) : (

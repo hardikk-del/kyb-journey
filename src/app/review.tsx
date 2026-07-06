@@ -309,12 +309,12 @@ export default function ReviewScreen() {
                   <View className="flex-row justify-between">
                     <Txt className="text-[13px] text-ink-3">Entity Name</Txt>
                     <Txt weight={600} className="text-[13px] text-ink">
-                      Finramp Technologies Pvt Ltd
+                      Shri Shakti Properties and BMS
                     </Txt>
                   </View>
                 </View>
               </ReviewCard>
-              <ReviewCard icon={<Landmark size={20} color={C.ink2} strokeWidth={1.75} />} title="Certificate of Incorporation" subtitle="ROC-BANGALORE" approved={c2} onApprove={() => setC2(true)} onUndo={() => setC2(false)}>
+              <ReviewCard icon={<Landmark size={20} color={C.ink2} strokeWidth={1.75} />} title="Certificate of Incorporation" subtitle="ROC-AHMEDABAD" approved={c2} onApprove={() => setC2(true)} onUndo={() => setC2(false)}>
                 <DocThumb label="COI Document" onView={() => view('Certificate of Incorporation', 'coi_proof.pdf')} />
               </ReviewCard>
               <ReviewCard icon={<FileText size={20} color={C.ink2} strokeWidth={1.75} />} title="Directors, Shareholding & Board Resolution" subtitle="On company letterhead" approved={c3} onApprove={() => setC3(true)} onUndo={() => setC3(false)}>
