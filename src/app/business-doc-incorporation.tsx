@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
-import { FileText, Sparkles, Trash2 } from 'lucide-react-native';
+import { FileText, ShieldCheck, Trash2 } from 'lucide-react-native';
 
 import { Body, BottomBar, PrimaryCTA, ScreenHeader } from '@/components/layout';
 import { Txt } from '@/components/Txt';
@@ -24,7 +24,7 @@ function AiAnalysing({ status }: { status: 'uploading' | 'verifying' }) {
   return (
     <View style={shadowXs} className="w-full items-center justify-center gap-3 rounded-xl border border-blue-200 bg-blue-50/60 px-4 py-8">
       <View className="h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-        {uploading ? <ActivityIndicator color={C.brand} /> : <Sparkles size={20} color={C.brand} strokeWidth={2} />}
+        {uploading ? <ActivityIndicator color={C.brand} /> : <ShieldCheck size={20} color={C.brand} strokeWidth={2} />}
       </View>
       <Txt weight={600} className="text-center text-[14px] text-ink-2">
         {uploading ? 'Uploading certificate…' : 'Reading the certificate…'}

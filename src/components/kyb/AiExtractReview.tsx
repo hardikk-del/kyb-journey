@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, View } from 'react-native';
-import { Check, Sparkles } from 'lucide-react-native';
+import { Check, ShieldCheck } from 'lucide-react-native';
 import { Txt } from '../Txt';
 import { cn } from '@/lib/cn';
 import { C, shadowXs } from '@/lib/tokens';
@@ -170,7 +170,7 @@ export function AiExtractReview({
       {/* header */}
       <View className="flex-row items-center gap-2.5 px-3.5 pb-3 pt-3.5">
         <View className="h-8 w-8 items-center justify-center rounded-full bg-blue-100">
-          <Sparkles size={16} color={C.brand} strokeWidth={2} />
+          <ShieldCheck size={16} color={C.brand} strokeWidth={2} />
         </View>
         <View className="flex-1">
           <Txt weight={700} className="text-[14.5px] text-ink">
@@ -209,7 +209,7 @@ export function AiExtractReview({
         {summaryOn ? (
           <View className="flex-row gap-2">
             <View className="mt-[3px] h-4 w-4 items-center justify-center rounded-full bg-blue-100">
-              <Sparkles size={9} color={C.brand} strokeWidth={2.5} />
+              <ShieldCheck size={9} color={C.brand} strokeWidth={2.5} />
             </View>
             <View className="flex-1">
               <StreamingText text={summary} onDone={onComplete} />

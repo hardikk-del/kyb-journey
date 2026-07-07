@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
-import { Camera, MapPin, RotateCcw, Check, Search, Plus, X, ShieldCheck, Trash2, Sparkles } from 'lucide-react-native';
+import { Camera, MapPin, RotateCcw, Check, Search, Plus, X, ShieldCheck, Trash2 } from 'lucide-react-native';
 
 import { Body, BottomBar, PrimaryCTA, ScreenHeader } from '@/components/layout';
 import { Txt } from '@/components/Txt';
@@ -309,7 +309,6 @@ export default function SiteVerificationScreen() {
                     <View className="flex-1 gap-1">
                       {recommended ? (
                         <View className="flex-row items-center gap-1.5">
-                          <Sparkles size={12} color={C.brand} strokeWidth={2.5} />
                           <Txt weight={600} className="text-[10.5px] uppercase tracking-[0.5px] text-brand">
                             Recommended
                           </Txt>

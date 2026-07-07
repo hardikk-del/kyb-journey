@@ -49,6 +49,7 @@ const CHECKLISTS: Record<string, Doc[]> = {
     { title: 'Entity & ownership details', sub: 'Beneficial ownership details and holding structure' },
     { title: 'Signatory KYC', sub: 'KYC of all authorised signatories' },
     { title: 'Business details', sub: 'Turnover, nature of business & source of funds' },
+    { title: 'Existing bank accounts', sub: 'Current accounts held with other banks' },
     { title: 'Incorporation certificate', sub: 'Issued by the Registrar of Companies' },
     { title: 'Board resolution', sub: 'Directors & shareholding, on letterhead' },
     { title: 'Business address proof', sub: 'GST, trade licence or utility bill (< 3 months)' },
