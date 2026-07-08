@@ -128,21 +128,19 @@ function BankPickerModal({
 
 /* ---------------- account type chips ---------------- */
 
-type AccType = 'current' | 'savings' | 'cc' | 'od' | 'loan';
+type AccType = 'current' | 'cc' | 'od';
 
 const ACC_TYPES: { value: AccType; label: string }[] = [
   { value: 'current', label: 'Current' },
-  { value: 'savings', label: 'Savings' },
   { value: 'cc', label: 'Cash Credit (CC)' },
   { value: 'od', label: 'Overdraft (OD)' },
-  { value: 'loan', label: 'Loan' },
 ];
 
 // Sample bank statement shown once a CC/OD statement is "received".
 const STATEMENT_IMG = 'https://imgv2-1-f.scribdassets.com/img/document/636483454/original/b29e18bdc1/1?v=1';
 
 // Credit-facility question is only meaningful for borrowing accounts.
-const CREDIT_TYPES: AccType[] = ['cc', 'od', 'loan'];
+const CREDIT_TYPES: AccType[] = ['cc', 'od'];
 // A statement is collected for drawing facilities that are actively used.
 const STATEMENT_TYPES: AccType[] = ['cc', 'od'];
 
