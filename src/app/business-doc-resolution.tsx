@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import { Asset } from 'expo-asset';
-import { Check, CheckCircle2, Eye, FileText, Lock, MapPin, MessageCircle, ShieldCheck, Smartphone, Sparkles } from 'lucide-react-native';
+import { Check, CheckCircle2, Eye, FileText, Lock, MapPin, ShieldCheck, Smartphone, Sparkles } from 'lucide-react-native';
 
 import { Body, BottomBar, PrimaryCTA, ScreenHeader } from '@/components/layout';
 import { Txt } from '@/components/Txt';
@@ -43,18 +43,7 @@ const YES_NO = [
 // Certifiers are the directors / company secretary fetched from MCA (Step 3).
 // The registry gives us names + DIN; role + Aadhaar-registered mobile are
 // synthesised here for the prototype.
-type Presence = 'present' | 'remote';
-type SignStatus =
-  | 'pending'
-  | 'loadingSig'
-  | 'sigReady'
-  | 'otp'
-  | 'verifying'
-  | 'verifiedApprove'
-  | 'awaiting'
-  | 'receiving'
-  | 'remoteApprove'
-  | 'signed';
+type SignStatus = 'pending' | 'loadingSig' | 'sigReady' | 'otp' | 'verifying' | 'verifiedApprove' | 'signed';
 interface Certifier {
   id: string;
   name: string;
@@ -122,15 +111,6 @@ function StatusPill({ status }: { status: SignStatus }) {
       </View>
     );
   }
-  if (status === 'awaiting' || status === 'receiving' || status === 'remoteApprove') {
-    return (
-      <View className="h-6 flex-row items-center rounded-full bg-amber-50 px-2.5">
-        <Txt weight={600} className="text-[12px] text-amber-700">
-          Awaiting signature
-        </Txt>
-      </View>
-    );
-  }
   return (
     <View className="h-6 flex-row items-center rounded-full bg-grey-100 px-2.5">
       <Txt weight={500} className="text-[12px] text-ink-3">
@@ -183,54 +163,48 @@ function OtpVerifiedBadge() {
 
 function CertifierRow({
   certifier,
-  presence,
   status,
-  active,
   otp,
   seconds,
   verifiedAt,
   onSendOtp,
   onChangeOtp,
   onVerify,
-  onSendLink,
   onResend,
-  onReceive,
   onApprove,
 }: {
   certifier: Certifier;
-  presence: Presence;
   status: SignStatus;
-  active: boolean;
   otp: string;
   seconds: number;
   verifiedAt: string;
   onSendOtp: () => void;
   onChangeOtp: (v: string) => void;
   onVerify: () => void;
-  onSendLink: () => void;
   onResend: () => void;
-  onReceive: () => void;
   onApprove: () => void;
 }) {
-  const border =
-    status === 'signed'
-      ? 'border-green-300'
-      : status === 'awaiting' || status === 'receiving' || status === 'remoteApprove'
-        ? 'border-amber-300'
-        : active
-          ? 'border-blue-200'
-          : 'border-line';
-  const muted = !active && status !== 'signed';
+  const border = status === 'signed' ? 'border-green-300' : status === 'pending' ? 'border-line' : 'border-blue-200';
 
   // The specimen signature stays visible once fetched.
   const showSpecimen = status === 'sigReady' || status === 'otp' || status === 'verifying';
-  const verifiedLine =
-    status === 'remoteApprove'
-      ? `Signed remotely via Aadhaar OTP · ${verifiedAt}`
-      : `Verified via Aadhaar OTP · ${verifiedAt}`;
+
+  // Live per-row activity line (rows sign in parallel).
+  const liveCaption =
+    status === 'loadingSig'
+      ? 'Fetching signature…'
+      : status === 'sigReady'
+        ? 'Ready to sign'
+        : status === 'otp'
+          ? 'Awaiting OTP entry'
+          : status === 'verifying'
+            ? 'Signing…'
+            : status === 'verifiedApprove'
+              ? 'Awaiting your approval'
+              : null;
 
   return (
-    <View style={shadowXs} className={cn('gap-3 rounded-xl border bg-card p-4', border, muted && 'opacity-60')}>
+    <View style={shadowXs} className={cn('gap-3 rounded-xl border bg-card p-4', border)}>
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1">
           <Txt weight={700} className="text-[15px] text-ink">
@@ -239,24 +213,21 @@ function CertifierRow({
           <Txt className="mt-0.5 text-[12.5px] text-ink-3">
             {certifier.role} · •••• {certifier.mobileLast4}
           </Txt>
-        </View>
-        {muted ? (
-          <View className="h-6 flex-row items-center rounded-full bg-grey-100 px-2.5">
-            <Txt weight={500} className="text-[12px] text-ink-3">
-              Waiting
+          {liveCaption ? (
+            <Txt weight={600} className="mt-0.5 text-[11.5px] text-brand">
+              {liveCaption}
             </Txt>
-          </View>
-        ) : (
-          <StatusPill status={status} />
-        )}
+          ) : null}
+        </View>
+        <StatusPill status={status} />
       </View>
 
-      {/* fetching / receiving the signature */}
-      {status === 'loadingSig' || status === 'receiving' ? (
+      {/* fetching the signature */}
+      {status === 'loadingSig' ? (
         <View className="flex-row items-center gap-2.5 border-t border-line pt-3">
           <ActivityIndicator size="small" color={C.brand} />
           <Txt weight={600} className="text-[13.5px] text-ink-2">
-            {status === 'loadingSig' ? 'Fetching signature…' : 'Receiving signature…'}
+            Fetching signature…
           </Txt>
         </View>
       ) : null}
@@ -269,14 +240,14 @@ function CertifierRow({
         </View>
       ) : null}
 
-      {/* verified preview (both paths) */}
-      {status === 'verifiedApprove' || status === 'remoteApprove' ? (
+      {/* verified preview */}
+      {status === 'verifiedApprove' ? (
         <View className="gap-1.5">
           <SignatureImage name={certifier.name} badge={<OtpVerifiedBadge />} />
           <View className="flex-row items-center justify-center gap-1.5">
             <ShieldCheck size={12} color={C.posFg} strokeWidth={2} />
             <Txt weight={500} className="text-center text-[11.5px] text-green-700">
-              {verifiedLine}
+              Verified via Aadhaar OTP · {verifiedAt}
             </Txt>
           </View>
         </View>
@@ -322,34 +293,9 @@ function CertifierRow({
         </View>
       ) : null}
 
-      {/* active + remote: send secure link */}
-      {status === 'pending' && active && presence === 'remote' ? (
-        <Button label="Send secure link" fullWidth leadingIcon={<MessageCircle size={16} color="#fff" strokeWidth={2} />} onPress={onSendLink} />
-      ) : null}
-
-      {/* awaiting remote signature */}
-      {status === 'awaiting' ? (
-        <View className="gap-2.5 border-t border-line pt-3">
-          <View className="flex-row items-start gap-2">
-            <ShieldCheck size={15} color={C.amberFg} strokeWidth={2} style={{ marginTop: 1 }} />
-            <Txt className="flex-1 text-[12.5px] leading-[17px] text-ink-2">
-              Secure link sent to {certifier.name} on WhatsApp / SMS. They'll sign on their own device.
-            </Txt>
-          </View>
-          <Pressable onPress={onReceive} hitSlop={6} className="self-start">
-            <Txt weight={600} className="text-[12px] text-ink-3 underline">
-              Simulate signature
-            </Txt>
-          </Pressable>
-        </View>
-      ) : null}
-
       {/* RM approval */}
-      {status === 'verifiedApprove' || status === 'remoteApprove' ? (
+      {status === 'verifiedApprove' ? (
         <View className="gap-2 border-t border-line pt-3">
-          {status === 'remoteApprove' ? (
-            <Txt className="text-[12.5px] leading-[17px] text-ink-3">Confirm the remote signature was received.</Txt>
-          ) : null}
           <Button label="Approve signature" fullWidth leadingIcon={<Check size={16} color="#fff" strokeWidth={2.5} />} onPress={onApprove} />
         </View>
       ) : null}
@@ -402,7 +348,6 @@ export default function BoardResolutionScreen() {
   // Section 5 — meta + certifiers
   const [meetingDate, setMeetingDate] = useState('');
   const [certifiers, setCertifiers] = useState<string[]>([]);
-  const [presence, setPresence] = useState<Record<string, Presence>>({});
   const [location, setLocation] = useState('');
 
   const [status, setStatus] = useState<'idle' | 'generating' | 'ready' | 'sign'>('idle');
@@ -413,33 +358,41 @@ export default function BoardResolutionScreen() {
   const [otp, setOtp] = useState<Record<string, string>>({});
   const [signedAt, setSignedAt] = useState<Record<string, string>>({});
   const [verifiedAt, setVerifiedAt] = useState<Record<string, string>>({});
-  const [seconds, setSeconds] = useState(0);
+  const [seconds, setSeconds] = useState<Record<string, number>>({});
   const [invalidated, setInvalidated] = useState(false);
 
+  // Tick every per-row resend timer down together (rows sign in parallel).
   useEffect(() => {
-    if (seconds <= 0) return;
-    const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
+    if (!Object.values(seconds).some((s) => s > 0)) return;
+    const t = setTimeout(() => {
+      setSeconds((prev) => {
+        const next: Record<string, number> = {};
+        for (const k in prev) next[k] = prev[k] > 0 ? prev[k] - 1 : 0;
+        return next;
+      });
+    }, 1000);
     return () => clearTimeout(t);
   }, [seconds]);
 
   const st = (id: string): SignStatus => signStatus[id] ?? 'pending';
-  const activeId = certifiers.find((id) => st(id) !== 'signed') ?? null;
   const signedCount = certifiers.filter((id) => st(id) === 'signed').length;
   const allSigned = certifiers.length > 0 && signedCount === certifiers.length;
   const canProceed = certifiers.length >= REQUIRED_CERTIFIERS;
 
-  // When an in-person certifier's row becomes active, fetch their specimen
-  // signature before any OTP is sent (remote rows wait for a secure link).
+  // On entering the sign stage, fetch every certifier's specimen signature in
+  // parallel (staggered slightly) so all rows become actionable at once.
   useEffect(() => {
-    if (status !== 'sign' || !activeId) return;
-    if ((presence[activeId] ?? 'present') === 'present' && st(activeId) === 'pending') {
-      const id = activeId;
-      setSignStatus((s) => ({ ...s, [id]: 'loadingSig' }));
-      const t = setTimeout(() => setSignStatus((s) => ({ ...s, [id]: 'sigReady' })), 1500);
-      return () => clearTimeout(t);
-    }
+    if (status !== 'sign') return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    certifiers.forEach((id, i) => {
+      if (st(id) === 'pending') {
+        setSignStatus((s) => ({ ...s, [id]: 'loadingSig' }));
+        timers.push(setTimeout(() => setSignStatus((s) => ({ ...s, [id]: 'sigReady' })), 1200 + i * 400));
+      }
+    });
+    return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, status]);
+  }, [status]);
 
   const markSigned = (id: string) => {
     setSignStatus((s) => ({ ...s, [id]: 'signed' }));
@@ -447,7 +400,7 @@ export default function BoardResolutionScreen() {
   };
   const sendOtp = (id: string) => {
     setSignStatus((s) => ({ ...s, [id]: 'otp' }));
-    setSeconds(30);
+    setSeconds((prev) => ({ ...prev, [id]: 30 }));
   };
   const verify = (id: string) => {
     setSignStatus((s) => ({ ...s, [id]: 'verifying' }));
@@ -455,14 +408,6 @@ export default function BoardResolutionScreen() {
       setSignStatus((s) => ({ ...s, [id]: 'verifiedApprove' }));
       setVerifiedAt((a) => ({ ...a, [id]: stamp() }));
     }, 2000);
-  };
-  const sendLink = (id: string) => setSignStatus((s) => ({ ...s, [id]: 'awaiting' }));
-  const receive = (id: string) => {
-    setSignStatus((s) => ({ ...s, [id]: 'receiving' }));
-    setTimeout(() => {
-      setSignStatus((s) => ({ ...s, [id]: 'remoteApprove' }));
-      setVerifiedAt((a) => ({ ...a, [id]: stamp() }));
-    }, 1500);
   };
   const approve = (id: string) => markSigned(id);
 
@@ -516,6 +461,7 @@ export default function BoardResolutionScreen() {
       setSignedAt({});
       setVerifiedAt({});
       setOtp({});
+      setSeconds({});
       setInvalidated(true);
     }
     setStatus('idle');
@@ -588,18 +534,14 @@ export default function BoardResolutionScreen() {
                 <CertifierRow
                   key={id}
                   certifier={c}
-                  presence={presence[id] ?? 'present'}
                   status={st(id)}
-                  active={id === activeId}
                   otp={otp[id] ?? ''}
-                  seconds={seconds}
+                  seconds={seconds[id] ?? 0}
                   verifiedAt={verifiedAt[id] ?? ''}
                   onSendOtp={() => sendOtp(id)}
                   onChangeOtp={(v) => setOtp((o) => ({ ...o, [id]: v }))}
                   onVerify={() => verify(id)}
-                  onSendLink={() => sendLink(id)}
                   onResend={() => sendOtp(id)}
-                  onReceive={() => receive(id)}
                   onApprove={() => approve(id)}
                 />
               );
@@ -689,7 +631,6 @@ export default function BoardResolutionScreen() {
                     <Txt className="flex-1 text-[13.5px] text-ink-2">
                       {c.name} · {c.role}
                     </Txt>
-                    <Txt className="text-[12px] text-ink-3">{(presence[id] ?? 'present') === 'remote' ? 'Remote' : 'In person'}</Txt>
                   </View>
                 );
               })}
@@ -901,31 +842,13 @@ export default function BoardResolutionScreen() {
               {certifiers.map((id) => {
                 const c = certById(id);
                 return (
-                  <View key={id} className="gap-2 rounded-lg border border-line bg-grey-50 p-3">
-                    <View>
-                      <Txt weight={600} className="text-[14px] text-ink">
-                        {c.name}
-                      </Txt>
-                      <Txt className="text-[12px] text-ink-3">
-                        {c.role} · •••• {c.mobileLast4}
-                      </Txt>
-                    </View>
-                    <View className="flex-row items-center justify-between gap-3">
-                      <Txt weight={500} className="text-[12.5px] text-ink-2">
-                        How are they signing?
-                      </Txt>
-                      <View className="w-[180px]">
-                        <Segmented
-                          value={presence[id] ?? 'present'}
-                          options={[
-                            { value: 'present', label: 'In person' },
-                            { value: 'remote', label: 'Remote' },
-                          ]}
-                          onChange={(v) => setPresence((p) => ({ ...p, [id]: v }))}
-                          height={36}
-                        />
-                      </View>
-                    </View>
+                  <View key={id} className="rounded-lg border border-line bg-grey-50 p-3">
+                    <Txt weight={600} className="text-[14px] text-ink">
+                      {c.name}
+                    </Txt>
+                    <Txt className="text-[12px] text-ink-3">
+                      {c.role} · •••• {c.mobileLast4}
+                    </Txt>
                   </View>
                 );
               })}
