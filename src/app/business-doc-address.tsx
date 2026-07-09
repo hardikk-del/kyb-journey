@@ -7,6 +7,7 @@ import { Txt } from '@/components/Txt';
 import { Dropdown, FieldLabel } from '@/components/kyb/controls';
 import { Dropzone, ProcessingTile, StatusBadge, DocThumb, DocViewer } from '@/components/kyb/docs';
 import { AiExtractReview, type ReviewField } from '@/components/kyb/AiExtractReview';
+import { UploadLaterSheet } from '@/components/kyb/UploadLaterSheet';
 import { ENTITY_META } from '@/lib/entities';
 import { useUpload } from '@/lib/useUpload';
 import { useStepHeader } from '@/lib/steps';
@@ -35,6 +36,7 @@ export default function BusinessAddressProofScreen() {
   const [proofType, setProofType] = useState('');
   const [viewer, setViewer] = useState(false);
   const [reviewDone, setReviewDone] = useState(false);
+  const [sheet, setSheet] = useState(false);
   const verified = slot.status === 'verified';
   const typeSelected = Boolean(proofType);
 
@@ -43,6 +45,14 @@ export default function BusinessAddressProofScreen() {
   const removeDoc = () => {
     slot.reset();
     setReviewDone(false);
+  };
+
+  const deferDoc = () => {
+    if (!flow.deferredDocs.includes(TITLE)) {
+      flow.set({ deferredDocs: [...flow.deferredDocs, TITLE] });
+    }
+    setSheet(false);
+    go('/self-declaration');
   };
 
   // Follow the AI review down as it streams in.
@@ -154,7 +164,11 @@ export default function BusinessAddressProofScreen() {
       <BottomBar
         hint={
           !verified ? (
-            <Txt className="text-[13px] text-ink-3">Upload the document to continue</Txt>
+            <Pressable onPress={() => setSheet(true)} hitSlop={8}>
+              <Txt weight={600} className="text-[13px] text-blue-500">
+                Don't have it right now? Upload later →
+              </Txt>
+            </Pressable>
           ) : !reviewDone ? (
             <Txt className="text-[13px] text-ink-3">Reviewing the document…</Txt>
           ) : undefined
@@ -162,6 +176,8 @@ export default function BusinessAddressProofScreen() {
       >
         <PrimaryCTA label="Verify & continue" disabled={!verified || !reviewDone} onPress={() => go('/self-declaration')} />
       </BottomBar>
+
+      <UploadLaterSheet open={sheet} docLabel={TITLE} onConfirm={deferDoc} onClose={() => setSheet(false)} />
 
       <DocViewer open={viewer} label={TITLE} meta={FILE_NAME} onClose={() => setViewer(false)} />
     </View>

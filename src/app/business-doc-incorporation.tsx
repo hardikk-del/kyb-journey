@@ -6,6 +6,7 @@ import { Body, BottomBar, PrimaryCTA, ScreenHeader } from '@/components/layout';
 import { Txt } from '@/components/Txt';
 import { Dropzone, DocThumb, DocViewer, StatusBadge } from '@/components/kyb/docs';
 import { AiExtractReview, type ReviewField } from '@/components/kyb/AiExtractReview';
+import { UploadLaterSheet } from '@/components/kyb/UploadLaterSheet';
 import { ENTITY_META } from '@/lib/entities';
 import { useUpload } from '@/lib/useUpload';
 import { useStepHeader } from '@/lib/steps';
@@ -44,6 +45,7 @@ export default function IncorporationCertificateScreen() {
   const slot = useUpload('idle');
   const [viewer, setViewer] = useState(false);
   const [reviewDone, setReviewDone] = useState(false);
+  const [sheet, setSheet] = useState(false);
   const verified = slot.status === 'verified';
 
   const scrollRef = useRef<ScrollView>(null);
@@ -51,6 +53,14 @@ export default function IncorporationCertificateScreen() {
   const removeDoc = () => {
     slot.reset();
     setReviewDone(false);
+  };
+
+  const deferDoc = () => {
+    if (!flow.deferredDocs.includes(TITLE)) {
+      flow.set({ deferredDocs: [...flow.deferredDocs, TITLE] });
+    }
+    setSheet(false);
+    go('/business-doc-resolution');
   };
 
   // Follow the AI review down as it streams in, so the RM stays on the newest
@@ -150,7 +160,11 @@ export default function IncorporationCertificateScreen() {
       <BottomBar
         hint={
           !verified ? (
-            <Txt className="text-[13px] text-ink-3">Upload the certificate to continue</Txt>
+            <Pressable onPress={() => setSheet(true)} hitSlop={8}>
+              <Txt weight={600} className="text-[13px] text-blue-500">
+                Don't have it right now? Upload later →
+              </Txt>
+            </Pressable>
           ) : !reviewDone ? (
             <Txt className="text-[13px] text-ink-3">Reviewing the certificate…</Txt>
           ) : undefined
@@ -158,6 +172,8 @@ export default function IncorporationCertificateScreen() {
       >
         <PrimaryCTA label="Continue" disabled={!verified || !reviewDone} onPress={() => go('/business-doc-resolution')} />
       </BottomBar>
+
+      <UploadLaterSheet open={sheet} docLabel={TITLE} onConfirm={deferDoc} onClose={() => setSheet(false)} />
 
       <DocViewer open={viewer} label={TITLE} meta={FILE_NAME} onClose={() => setViewer(false)} />
     </View>

@@ -25,6 +25,11 @@ interface FlowState {
   signatory: string;
   /** Document-collection method chosen on the checklist. */
   method: CollectMethod;
+  /**
+   * Business-proof documents the user chose to upload later — an agent collects
+   * these over WhatsApp within 7 days. Surfaced on the submitted screen.
+   */
+  deferredDocs: string[];
   set: (patch: Partial<Omit<FlowState, 'set' | 'reset'>>) => void;
   /** Reset to a fresh proprietorship — called from the Start screen. */
   reset: () => void;
@@ -36,6 +41,7 @@ const initial = {
   people: [] as Person[],
   signatory: 'Ravi Kumar',
   method: 'link' as CollectMethod,
+  deferredDocs: [] as string[],
 };
 
 export const useFlow = create<FlowState>((set) => ({
